@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BBQ — Host</title>
+  </head>
+  <body>
+    <main>
+      <section class="stack">
+        <p class="eyebrow">Current cue</p>
+        <h1>Welcome</h1>
+      </section>
+
+      <section class="stack" aria-labelledby="players-heading">
+        <h2 id="players-heading">Players</h2>
+        <p id="empty-state">Waiting for players...</p>
+        <ol id="players" hidden></ol>
+      </section>
+
+      <button id="next" type="button">NEXT</button>
+    </main>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
