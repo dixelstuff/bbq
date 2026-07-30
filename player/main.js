@@ -1,10 +1,18 @@
 import "../shared/styles.css";
 import { joinPlayer } from "../shared/players.js";
+import { observeStep } from "../shared/session-state.js";
 
 const form = document.querySelector("#join-form");
 const input = document.querySelector("#name");
 const button = form.querySelector("button");
+const screen = document.querySelector("#screen");
 const status = document.querySelector("#status");
+
+observeStep((step) => {
+  screen.textContent = `Waiting — screen ${step}`;
+}).catch(() => {
+  screen.textContent = "Unable to connect";
+});
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();

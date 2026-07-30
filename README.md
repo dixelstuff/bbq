@@ -26,8 +26,13 @@ network, run `npm run dev -- --host`.
 Milestone 1 uses one deliberately small path:
 
 ```text
-sessions/default/players/{anonymous-user-id}
+sessions/default/
+├── players/{anonymous-user-id}
+└── state/step
 ```
 
 Each player record contains a name and a joined timestamp. The record is removed
 automatically when that player's Firebase connection closes.
+
+The shared numeric step starts at `1`. The host can advance or reset it, and all
+three applications receive updates live.
