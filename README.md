@@ -36,3 +36,12 @@ automatically when that player's Firebase connection closes.
 
 The shared numeric step starts at `1`. The host can advance or reset it, and all
 three applications receive updates live.
+
+## Public deployment
+
+Pushes to `main` deploy automatically to GitHub Pages:
+
+- `https://dixelstuff.github.io/bbq/`
+- `https://dixelstuff.github.io/bbq/display/`
+- `https://dixelstuff.github.io/bbq/host/`
+- `https://dixelstuff.github.io/bbq/player/`

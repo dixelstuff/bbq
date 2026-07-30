@@ -116,6 +116,21 @@ button.secondary:hover {
   background: #e9e6df;
 }
 
+.launch-link {
+  display: flex;
+  min-height: 3.5rem;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #cfccc4;
+  color: inherit;
+  font-size: 1.25rem;
+  text-decoration: none;
+}
+
+.launch-link::after {
+  content: "→";
+}
+
 .status {
   min-height: 1.25rem;
   color: #6b6962;
