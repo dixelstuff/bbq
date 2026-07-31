@@ -80,7 +80,7 @@ export async function beginRound(roundId = partyGame.rounds[0].id) {
 
     const players = currentPlayers(session, state);
     if (
-      round.type === roundTypes.pairingPrototype &&
+      [roundTypes.pairingPrototype, roundTypes.charades].includes(round.type) &&
       !Object.keys(session.grouping?.groups ?? {}).length
     ) {
       missingGroups = true;
@@ -101,6 +101,12 @@ export async function beginRound(roundId = partyGame.rounds[0].id) {
         showAssignments: false,
         createdAt: Date.now(),
       };
+    } else if (round.type === roundTypes.charades) {
+      grouping = {
+        ...grouping,
+        participation: participationModes.turnBased,
+        showAssignments: false,
+      };
     }
 
     return {
@@ -112,6 +118,8 @@ export async function beginRound(roundId = partyGame.rounds[0].id) {
         type: round.type,
         submissions: {},
         itemIndex: 0,
+        promptIndex: 0,
+        timer: null,
         displayMode: displayModeForPhase(round, phases.question),
         startedAt: Date.now(),
       },
@@ -126,7 +134,7 @@ export async function beginRound(roundId = partyGame.rounds[0].id) {
     };
   });
   if (!result.committed && missingGroups) {
-    throw new Error("Generate pairs before starting this round");
+    throw new Error("Create groups before starting this round");
   }
   return result;
 }
@@ -236,6 +244,86 @@ export async function advanceSpelling() {
   });
 }
 
+export async function moveCharadesPrompt(direction) {
+  const change = Number(direction);
+  if (!Number.isInteger(change)) throw new Error("Prompt direction is invalid");
+  return transactSession((session, state) => {
+    const definition = getRound(state.gameId, state.roundId);
+    if (
+      state.phase !== phases.question ||
+      definition?.type !== roundTypes.charades
+    ) {
+      return;
+    }
+    return {
+      ...session,
+      round: {
+        ...session.round,
+        promptIndex: Math.max(0, (session.round?.promptIndex ?? 0) + change),
+      },
+    };
+  });
+}
+
+export async function startRoundTimer(durationSeconds = 60) {
+  const duration = Number(durationSeconds);
+  if (!Number.isFinite(duration) || duration <= 0) {
+    throw new Error("Timer duration must be positive");
+  }
+  return transactSession((session, state) => {
+    if (state.phase !== phases.question) return;
+    const startedAt = Date.now();
+    return {
+      ...session,
+      round: {
+        ...session.round,
+        timer: {
+          status: "running",
+          durationSeconds: duration,
+          startedAt,
+          endsAt: startedAt + duration * 1000,
+        },
+      },
+    };
+  });
+}
+
+export async function stopRoundTimer() {
+  return transactSession((session, state) => {
+    const timer = session.round?.timer;
+    if (state.phase !== phases.question || timer?.status !== "running") return;
+    const stoppedAt = Date.now();
+    return {
+      ...session,
+      round: {
+        ...session.round,
+        timer: {
+          ...timer,
+          status: "stopped",
+          stoppedAt,
+          remainingSeconds: Math.max(
+            0,
+            Math.ceil((timer.endsAt - stoppedAt) / 1000),
+          ),
+        },
+      },
+    };
+  });
+}
+
+export async function setRoundDisplayOverlay(enabled) {
+  return transactSession((session, state) => {
+    if (state.phase !== phases.question || !session.round) return;
+    return {
+      ...session,
+      round: {
+        ...session.round,
+        displayMode: enabled ? displayModes.overlay : displayModes.artwork,
+      },
+    };
+  });
+}
+
 export async function closeAnswers() {
   return transactSession((session, state) => {
     if (state.phase !== phases.question) return;
@@ -295,6 +383,26 @@ export async function showLeaderboard() {
 
 export async function showPairingLeaderboard() {
   return setPhase(phases.question, phases.leaderboard);
+}
+
+export async function showCharadesLeaderboard() {
+  return transactSession((session, state) => {
+    const definition = getRound(state.gameId, state.roundId);
+    if (
+      state.phase !== phases.question ||
+      definition?.type !== roundTypes.charades
+    ) {
+      return;
+    }
+    return {
+      ...withPhase(session, state, phases.leaderboard),
+      round: {
+        ...session.round,
+        timer: null,
+        displayMode: displayModes.leaderboard,
+      },
+    };
+  });
 }
 
 export async function finishRound() {

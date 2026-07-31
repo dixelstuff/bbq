@@ -3,6 +3,7 @@ export const roundTypes = {
   closestWins: "closest-wins",
   pairingPrototype: "pairing-prototype",
   spellingBee: "spelling-bee",
+  charades: "charades",
   manualScore: "manual-score",
 };
 

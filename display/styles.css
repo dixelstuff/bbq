@@ -111,7 +111,8 @@ body {
 }
 
 .artwork-screen,
-.spelling-reveal-screen {
+.spelling-reveal-screen,
+.timer-screen {
   position: relative;
   min-height: 100vh;
   overflow: hidden;
@@ -122,6 +123,18 @@ body {
   width: 100vw;
   height: 100vh;
   object-fit: cover;
+}
+
+.production-title-in .round-artwork {
+  animation: production-title-in 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.production-artwork-faded {
+  opacity: 0.3;
+  filter: saturate(0.65);
+  transition:
+    opacity 600ms ease,
+    filter 600ms ease;
 }
 
 .active-group-overlay {
@@ -234,11 +247,6 @@ body {
   color: #b9e8d4;
 }
 
-.spelling-reveal-screen .round-artwork {
-  opacity: 0.3;
-  filter: saturate(0.65);
-}
-
 .spelling-reveal-card {
   position: absolute;
   inset: 0;
@@ -249,6 +257,54 @@ body {
   padding: 5vw;
   background: rgb(2 13 10 / 25%);
   text-align: center;
+}
+
+.production-reveal-in .spelling-reveal-card {
+  animation: production-reveal-in 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.timer-screen {
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle, rgb(116 75 47 / 30%), transparent 42%),
+    #090b10;
+}
+
+.timer-ring {
+  display: grid;
+  width: min(58vh, 42vw);
+  aspect-ratio: 1;
+  place-items: center;
+  border: 2px solid rgb(229 185 104 / 55%);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1.5rem rgb(229 185 104 / 4%),
+    0 0 8rem rgb(229 185 104 / 15%);
+}
+
+.timer-ring p {
+  margin: 0;
+  color: #fff7e6;
+  font-family: Georgia, serif;
+  font-size: clamp(7rem, 20vw, 16rem);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.07em;
+  line-height: 1;
+}
+
+.timer-complete .timer-ring {
+  width: min(72vw, 62rem);
+  aspect-ratio: auto;
+  border: 0;
+  box-shadow: none;
+}
+
+.timer-complete .timer-ring p {
+  color: #e5b968;
+  font-size: clamp(6rem, 17vw, 14rem);
+  letter-spacing: 0.02em;
+  animation: production-time-in 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .spelling-reveal-card p {
@@ -323,6 +379,8 @@ body {
   display: grid;
   align-content: center;
   gap: 2rem;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .reveal-answers,
@@ -362,5 +420,60 @@ body {
 
 .leaderboard li {
   grid-template-columns: 1fr auto;
-  font-size: clamp(1.8rem, 4vw, 3.5rem);
+  min-height: 0;
+  font-size: clamp(1.55rem, 3.3vw, 3.1rem);
+}
+
+.leaderboard {
+  grid-auto-flow: column;
+  grid-template-rows: repeat(var(--leaderboard-rows), minmax(0, 1fr));
+  grid-template-columns: repeat(var(--leaderboard-columns), minmax(0, 1fr));
+  column-gap: clamp(2rem, 5vw, 5rem);
+  max-height: calc(100vh - 12rem);
+  overflow: hidden;
+}
+
+.production-leaderboard-in .leaderboard li {
+  animation: production-row-in 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.leaderboard[data-density="balanced"] li {
+  font-size: clamp(1.2rem, 2.3vw, 2rem);
+}
+
+.leaderboard[data-density="compact"] li {
+  padding: 0.25rem 0;
+  font-size: clamp(0.95rem, 1.65vw, 1.45rem);
+}
+
+@keyframes production-title-in {
+  from {
+    opacity: 0;
+    transform: scale(1.025);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes production-reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(1.5rem) scale(0.98);
+  }
+}
+
+@keyframes production-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.8rem);
+  }
+}
+
+@keyframes production-time-in {
+  from {
+    opacity: 0;
+    transform: scale(1.15);
+  }
 }

@@ -16,6 +16,24 @@
   display: none !important;
 }
 
+html[data-host-access="locked"] body > main {
+  visibility: hidden;
+}
+
+.host-access-dialog {
+  width: min(92vw, 28rem);
+}
+
+.host-access-dialog::backdrop {
+  background: rgb(18 18 16 / 78%);
+  backdrop-filter: blur(0.5rem);
+}
+
+.host-access-dialog a {
+  color: #6b6962;
+  text-align: center;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -546,6 +564,58 @@ dialog::backdrop {
   font-size: 1.15rem;
 }
 
+.charades-prompt-card {
+  border: 2px solid #181816;
+  border-radius: 1rem;
+  padding: 1.25rem;
+  background: #181816;
+  color: #fffdf6;
+}
+
+.charades-prompt-card h2 {
+  margin: 0.4rem 0 0;
+  font-size: clamp(1.75rem, 6vw, 3.25rem);
+  line-height: 1.05;
+}
+
+.charades-navigation,
+.charades-timer-controls,
+.charades-score-buttons {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.charades-navigation {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.charades-timer-controls {
+  grid-template-columns: minmax(5rem, 0.5fr) repeat(3, minmax(9rem, 1fr));
+  align-items: end;
+}
+
+.charades-score-buttons {
+  grid-template-columns: repeat(6, minmax(3.25rem, 1fr));
+}
+
+.charades-navigation button,
+.charades-timer-controls button {
+  min-height: 4rem;
+}
+
+.charades-score-buttons button {
+  min-height: 5rem;
+  padding: 0;
+  font-size: 1.6rem;
+}
+
+.host-shortcuts {
+  margin: 0;
+  color: #6b6962;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
 .mark-correct {
   background: #287441;
 }
@@ -646,5 +716,9 @@ dialog::backdrop {
 
   .submission-row {
     grid-template-columns: 1fr;
+  }
+
+  .charades-timer-controls {
+    grid-template-columns: 1fr 1fr;
   }
 }

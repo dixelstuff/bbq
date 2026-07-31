@@ -13,6 +13,11 @@ import {
   roundTypes,
 } from "../shared/round-types.js";
 import { displayModes, displayModeForPhase } from "../shared/display-modes.js";
+import {
+  leaderboardLayout,
+  remainingTimerSeconds,
+} from "../shared/presentation.js";
+import { production } from "./production.js";
 
 const joinUrl = "https://dixelstuff.github.io/bbq/";
 const waitingScreen = document.querySelector("#waiting-screen");
@@ -46,6 +51,8 @@ const spellingRevealScreen = document.querySelector("#spelling-reveal-screen");
 const spellingRevealArtwork = document.querySelector("#spelling-reveal-artwork");
 const spellingRevealStatus = document.querySelector("#spelling-reveal-status");
 const spellingRevealWord = document.querySelector("#spelling-reveal-word");
+const timerScreen = document.querySelector("#timer-screen");
+const timerValue = document.querySelector("#timer-value");
 
 let players = [];
 let gameSnapshot;
@@ -88,6 +95,8 @@ observeGame((snapshot) => {
   holdingText.textContent = "OFFLINE";
 });
 
+setInterval(renderTimerTick, 200);
+
 function renderPlayerCounts() {
   const count = players.length;
   waitingPlayerCount.textContent = `${count} ${count === 1 ? "PLAYER" : "PLAYERS"}`;
@@ -117,6 +126,10 @@ function renderGame(snapshot) {
   }
 
   if (state.phase === phases.question && definition) {
+    if (definition.type === roundTypes.charades && round?.timer) {
+      renderTimer(round.timer);
+      return;
+    }
     const mode = round?.displayMode ?? displayModeForPhase(definition, state.phase);
     if (
       definition.type === roundTypes.spellingBee ||
@@ -194,6 +207,11 @@ function renderGame(snapshot) {
 
   if (state.phase === phases.leaderboard) {
     showOnly(leaderboardScreen);
+    const layout = leaderboardLayout(scores.length);
+    leaderboard.style.setProperty("--leaderboard-columns", layout.columns);
+    leaderboard.style.setProperty("--leaderboard-rows", layout.rows);
+    leaderboard.dataset.density =
+      scores.length > 14 ? "compact" : scores.length > 7 ? "balanced" : "roomy";
     leaderboard.replaceChildren(
       ...scores.map((player, index) => {
         const item = document.createElement("li");
@@ -202,6 +220,10 @@ function renderGame(snapshot) {
         )}</span><strong>${player.score ?? 0}</strong>`;
         return item;
       }),
+    );
+    production.playLeaderboard(
+      leaderboardScreen,
+      `leaderboard:${snapshot.round?.startedAt}`,
     );
     return;
   }
@@ -220,6 +242,7 @@ function showOnly(activeScreen) {
     artworkScreen,
     groupsScreen,
     spellingRevealScreen,
+    timerScreen,
   ].forEach((screen) => {
     screen.hidden = screen !== activeScreen;
   });
@@ -227,6 +250,7 @@ function showOnly(activeScreen) {
 
 function renderArtwork(definition, mode) {
   showOnly(artworkScreen);
+  roundArtwork.classList.remove("production-artwork-faded");
   const titleMedia = resolveDisplayMedia(
     mediaForAudience(definition, "display", "title"),
   );
@@ -245,6 +269,10 @@ function renderArtwork(definition, mode) {
       return name;
     }),
   );
+  production.playTitle(
+    artworkScreen,
+    `title:${gameSnapshot?.round?.startedAt}:${mode}`,
+  );
 }
 
 function renderSpellingReveal(definition, round) {
@@ -257,6 +285,7 @@ function renderSpellingReveal(definition, round) {
     spellingRevealArtwork.src = titleMedia.src;
     spellingRevealArtwork.alt = titleMedia.alt ?? "";
   }
+  production.fadeArtwork(spellingRevealArtwork);
   spellingRevealStatus.textContent = round?.result?.correct
     ? "CORRECT"
     : "INCORRECT";
@@ -264,6 +293,33 @@ function renderSpellingReveal(definition, round) {
     ? "is-correct"
     : "is-incorrect";
   spellingRevealWord.textContent = round?.result?.word ?? "";
+  const revealKey = `${round?.startedAt}:${round?.result?.markedAt}`;
+  production.playReveal(spellingRevealScreen, `reveal:${revealKey}`);
+  if (round?.result?.correct) {
+    production.playCorrect(`correct:${revealKey}`);
+  } else {
+    production.playWrong(`wrong:${revealKey}`);
+  }
+}
+
+function renderTimer(timer) {
+  showOnly(timerScreen);
+  const seconds = remainingTimerSeconds(timer);
+  timerValue.textContent = seconds > 0 ? String(seconds) : "TIME!";
+  timerScreen.classList.toggle("timer-complete", seconds === 0);
+  if (seconds === 0) {
+    production.playTimerComplete(`timer:${timer.endsAt}`);
+  }
+}
+
+function renderTimerTick() {
+  if (
+    gameSnapshot?.definition?.type === roundTypes.charades &&
+    gameSnapshot.state.phase === phases.question &&
+    gameSnapshot.round?.timer
+  ) {
+    renderTimer(gameSnapshot.round.timer);
+  }
 }
 
 function renderGroupingPresentation() {
@@ -278,7 +334,7 @@ function renderGroupingPresentation() {
       ? "TEAMS"
       : groupingSnapshot.mode === "individual"
         ? "PLAYERS"
-        : groups.every((group) => group.memberIds?.length === 2)
+        : groupingSnapshot.mode === "pairs"
           ? "PAIRS"
           : "GROUPS";
   groupsModeTitle.textContent = `TONIGHT'S ${rosterTerm}`;

@@ -86,6 +86,11 @@ export function reassignPlayer(groups, playerId, groupId, mode) {
       if (id !== groupId && group.memberIds.length === 0) delete updated[id];
     }
   }
+  if (mode === groupingModes.pairs) {
+    Object.values(updated).forEach((group, index) => {
+      group.name = pairGroupName(group.memberIds.length, index);
+    });
+  }
   return updated;
 }
 
@@ -185,7 +190,7 @@ export async function setGroupingPresentation(showAssignments) {
   }));
 }
 
-export async function awardGroupPoints(groupId, points) {
+export async function awardGroupPoints(groupId, points, metadata = {}) {
   const award = Number(points);
   if (!Number.isFinite(award)) throw new Error("Points must be a number");
   await signIn();
@@ -209,6 +214,7 @@ export async function awardGroupPoints(groupId, points) {
         groupAwards: {
           ...(current.round?.groupAwards ?? {}),
           [awardId]: {
+            ...metadata,
             groupId,
             groupName: group.name,
             memberIds: group.memberIds ?? [],
@@ -277,7 +283,13 @@ function createPairGroups(shuffled) {
   if (remaining.length) groups.push(remaining);
   return groups.map((memberIds, index) => ({
     id: `group-${index + 1}`,
-    name: `PAIR ${index + 1}`,
+    name: pairGroupName(memberIds.length, index),
     memberIds,
   }));
+}
+
+function pairGroupName(memberCount, index) {
+  const label =
+    memberCount === 2 ? "Pair" : memberCount === 3 ? "Pair-ish" : "Group";
+  return `${label} ${index + 1}`;
 }

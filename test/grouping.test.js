@@ -42,6 +42,17 @@ test("seven players produce two pairs and one group of three", () => {
   assert.deepEqual(pairSizes(7), [2, 2, 3]);
 });
 
+test("Pair-ish is used only for the final three-person pair group", () => {
+  const odd = createGroups(makePlayers(9), groupingModes.pairs, noShuffle);
+  assert.deepEqual(
+    odd.map((group) => group.name),
+    ["Pair 1", "Pair 2", "Pair 3", "Pair-ish 4"],
+  );
+  assert.equal(odd.filter((group) => group.name.includes("Pair-ish")).length, 1);
+  const even = createGroups(makePlayers(8), groupingModes.pairs, noShuffle);
+  assert.equal(even.some((group) => group.name.includes("Pair-ish")), false);
+});
+
 test("odd pair generation omits nobody and contains no duplicates", () => {
   const ids = createGroups(
     makePlayers(9),
@@ -116,6 +127,17 @@ test("moving the last member removes an empty pair-group cleanly", () => {
   );
   assert.equal(moved["group-1"], undefined);
   assert.deepEqual(moved["group-2"].memberIds, ["b", "c", "a"]);
+  assert.equal(moved["group-2"].name, "Pair-ish 1");
+});
+
+test("manual pair edits keep Pair-ish exclusive to three members", () => {
+  const groups = {
+    "group-1": { id: "group-1", name: "Pair 1", memberIds: ["a", "b"] },
+    "group-2": { id: "group-2", name: "Pair-ish 2", memberIds: ["c", "d", "e"] },
+  };
+  const moved = reassignPlayer(groups, "e", "group-1", groupingModes.pairs);
+  assert.equal(moved["group-1"].name, "Pair-ish 1");
+  assert.equal(moved["group-2"].name, "Pair 2");
 });
 
 test("three-person pair-group awards credit all three members", () => {
@@ -218,4 +240,37 @@ test("the Spelling Bee round declares an individual, quiet Display flow", async 
   assert.equal(spellingBeeRound.display.phases.question, "artwork");
   assert.equal(spellingBeeRound.display.phases.reveal, "reveal");
   assert.equal(spellingBeeRound.media.title.visibility, "display");
+});
+
+test("Charades reuses any existing grouping and keeps its Display quiet", async () => {
+  const { charadesRound } = await import(
+    "../shared/rounds/charades/round.js"
+  );
+  assert.equal(charadesRound.grouping.mode, "existing");
+  assert.equal(charadesRound.participation, "turn-based");
+  assert.equal(charadesRound.display.overlay, true);
+  assert.equal(charadesRound.display.phases.question, "artwork");
+  assert.equal(charadesRound.timer.defaultSeconds, 60);
+  assert.deepEqual(charadesRound.scoring, { minimum: 0, maximum: 5 });
+});
+
+test("Charades-style awards credit individuals, pairs, Pair-ish groups and teams", () => {
+  const players = Object.fromEntries(
+    makePlayers(5, true).map((player) => [
+      player.id,
+      { generation: 8, score: 0, simulated: true },
+    ]),
+  );
+  for (const mode of [
+    groupingModes.individual,
+    groupingModes.pairs,
+    groupingModes.twoTeams,
+  ]) {
+    for (const group of createGroups(makePlayers(5, true), mode, noShuffle)) {
+      const scored = creditGroupMembers(players, group, 4, 8);
+      for (const memberId of group.memberIds) {
+        assert.equal(scored[memberId].score, 4);
+      }
+    }
+  }
 });

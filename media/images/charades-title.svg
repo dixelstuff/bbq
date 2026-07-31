@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="40%" r="75%">
+      <stop offset="0" stop-color="#56342e"/>
+      <stop offset="0.55" stop-color="#241a1d"/>
+      <stop offset="1" stop-color="#08090d"/>
+    </radialGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="18" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <circle cx="960" cy="500" r="330" fill="none" stroke="#e5b968" stroke-opacity=".18" stroke-width="2"/>
+  <circle cx="960" cy="500" r="250" fill="none" stroke="#e5b968" stroke-opacity=".1" stroke-width="1"/>
+  <path d="M0 950 Q480 820 960 950 T1920 950 V1080 H0Z" fill="#050608" opacity=".75"/>
+  <text x="960" y="470" text-anchor="middle" fill="#f4dfb5" font-family="Georgia, serif" font-size="38" letter-spacing="18">BBQ PRESENTS</text>
+  <text x="960" y="610" text-anchor="middle" fill="#fff7e6" font-family="Georgia, serif" font-size="150" letter-spacing="14" filter="url(#glow)">CHARADES</text>
+  <text x="960" y="690" text-anchor="middle" fill="#d8ad68" font-family="Arial, sans-serif" font-size="24" letter-spacing="10">NO WORDS. QUESTIONABLE ACTING.</text>
+</svg>

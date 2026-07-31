@@ -4,6 +4,7 @@ import {
   scoringStrategies,
 } from "../round-types.js";
 import { spellingBeeRound } from "../rounds/spelling-bee/round.js";
+import { charadesRound } from "../rounds/charades/round.js";
 
 export const partyGame = {
   id: "birthday-party",
@@ -57,6 +58,7 @@ export const partyGame = {
       notes: "Answers are ranked automatically by absolute distance from 16,900.",
     },
     spellingBeeRound,
+    charadesRound,
   ],
 };
 

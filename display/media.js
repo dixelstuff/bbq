@@ -1,4 +1,5 @@
 import { spellingBeeDisplayMedia } from "./rounds/spelling-bee/media.js";
+import { charadesDisplayMedia } from "./rounds/charades/media.js";
 
 const mediaLibrary = {
   "placeholder-animal": {
@@ -6,6 +7,7 @@ const mediaLibrary = {
     alt: "An illustrated grey koala among eucalyptus leaves",
   },
   ...spellingBeeDisplayMedia,
+  ...charadesDisplayMedia,
 };
 
 export function resolveDisplayMedia(media) {

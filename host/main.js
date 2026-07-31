@@ -7,6 +7,7 @@ import {
   finishRound,
   markAllRemaining,
   markSpelling,
+  moveCharadesPrompt,
   markSubmission,
   observeGame,
   overrideSubmissionPoints,
@@ -14,6 +15,10 @@ import {
   scoreAndReveal,
   showPairingLeaderboard,
   showLeaderboard,
+  showCharadesLeaderboard,
+  startRoundTimer,
+  stopRoundTimer,
+  setRoundDisplayOverlay,
 } from "../shared/game-engine.js";
 import {
   getRounds,
@@ -39,6 +44,7 @@ import {
   resetGame,
 } from "../shared/session-state.js";
 import { spellingBeeWords } from "./rounds/spelling-bee/content.js";
+import { charadesPrompts } from "./rounds/charades/content.js";
 
 const nextButton = document.querySelector("#next");
 const joinedCount = document.querySelector("#joined-count");
@@ -77,10 +83,24 @@ const spellingExample = document.querySelector("#spelling-example");
 const spellingMarking = document.querySelector("#spelling-marking");
 const spellingCorrect = document.querySelector("#spelling-correct");
 const spellingIncorrect = document.querySelector("#spelling-incorrect");
+const charadesHost = document.querySelector("#charades-host");
+const charadesGroup = document.querySelector("#charades-group");
+const charadesPrompt = document.querySelector("#charades-prompt");
+const charadesSeconds = document.querySelector("#charades-seconds");
+const charadesStartTimer = document.querySelector("#charades-start-timer");
+const charadesStopTimer = document.querySelector("#charades-stop-timer");
+const charadesOverlay = document.querySelector("#charades-overlay");
+const charadesScoreButtons = document.querySelector("#charades-score-buttons");
 
 let gameSnapshot;
 let latestPlayers = [];
 let latestGrouping = { groups: [] };
+
+if (document.documentElement.dataset.hostAccess !== "granted") {
+  await new Promise((resolve) =>
+    window.addEventListener("bbq-host-unlocked", resolve, { once: true }),
+  );
+}
 
 await ensureSessionRelease(releaseId);
 
@@ -108,6 +128,9 @@ observeGrouping((grouping) => {
   if (gameSnapshot?.definition?.type === roundTypes.spellingBee) {
     renderSpellingHost(gameSnapshot.state, gameSnapshot.round);
   }
+  if (gameSnapshot?.definition?.type === roundTypes.charades) {
+    renderCharadesHost(gameSnapshot.state, gameSnapshot.round);
+  }
 }).catch((error) => {
   console.error("[BBQ host] Unable to observe groups.", error);
 });
@@ -127,10 +150,14 @@ nextButton.addEventListener("click", async () => {
     gameSnapshot?.definition?.type === roundTypes.pairingPrototype;
   const spellingRound =
     gameSnapshot?.definition?.type === roundTypes.spellingBee;
+  const charadesRound =
+    gameSnapshot?.definition?.type === roundTypes.charades;
   const action = {
     [phases.lobby]: () => beginRound(roundSelect.value),
     [phases.question]: spellingRound
       ? null
+      : charadesRound
+      ? showCharadesLeaderboard
       : pairingRound
       ? showPairingLeaderboard
       : closeAnswers,
@@ -157,10 +184,53 @@ spellingIncorrect.addEventListener("click", () =>
   markCurrentSpelling(false, spellingIncorrect),
 );
 
+document.querySelector("#generate-individuals").addEventListener("click", (event) =>
+  runAction(event.currentTarget, () =>
+    generateGrouping(groupingModes.individual, participationModes.turnBased),
+  ),
+);
+
 document.querySelector("#generate-pairs").addEventListener("click", (event) =>
   runAction(event.currentTarget, () =>
     generateGrouping(groupingModes.pairs, participationModes.turnBased),
   ),
+);
+
+document.querySelector("#generate-threes").addEventListener("click", (event) =>
+  runAction(event.currentTarget, () =>
+    generateGrouping(groupingModes.threes, participationModes.turnBased),
+  ),
+);
+
+document.querySelector("#charades-previous-group").addEventListener("click", () =>
+  cycleActiveGroup(-1),
+);
+document.querySelector("#charades-next-group").addEventListener("click", () =>
+  cycleActiveGroup(1),
+);
+document.querySelector("#charades-previous-prompt").addEventListener("click", (event) =>
+  runAction(event.currentTarget, () => moveCharadesPrompt(-1)),
+);
+document.querySelector("#charades-next-prompt").addEventListener("click", (event) =>
+  runAction(event.currentTarget, () => moveCharadesPrompt(1)),
+);
+charadesStartTimer.addEventListener("click", () =>
+  runAction(charadesStartTimer, () => startRoundTimer(charadesSeconds.value)),
+);
+charadesStopTimer.addEventListener("click", () =>
+  runAction(charadesStopTimer, stopRoundTimer),
+);
+charadesOverlay.addEventListener("click", () =>
+  runAction(charadesOverlay, () =>
+    setRoundDisplayOverlay(gameSnapshot?.round?.displayMode !== "overlay"),
+  ),
+);
+charadesScoreButtons.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-charades-points]");
+  if (button) awardCurrentCharadesGroup(button.dataset.charadesPoints, button);
+});
+document.querySelector("#charades-leaderboard").addEventListener("click", (event) =>
+  runAction(event.currentTarget, showCharadesLeaderboard),
 );
 
 document.querySelector("#generate-teams").addEventListener("click", (event) =>
@@ -274,18 +344,24 @@ function renderPlayers(players) {
 function renderGame(snapshot) {
   const { state, definition, round, submissions } = snapshot;
   const isSpelling = definition?.type === roundTypes.spellingBee;
-  phaseLabel.textContent = phaseTitle(state.phase);
+  const isCharades = definition?.type === roundTypes.charades;
+  phaseLabel.textContent = phaseTitle(state.phase, definition);
   cueHeading.textContent =
     state.phase === phases.lobby ? "Welcome" : definition?.typeLabel ?? partyGame.title;
 
-  gamePanel.hidden = !definition || isSpelling;
+  gamePanel.hidden = !definition || isSpelling || isCharades;
   spellingHost.hidden = !isSpelling;
+  charadesHost.hidden = !isCharades || state.phase !== phases.question;
   bulkActions.hidden =
     state.phase !== phases.marking ||
     definition?.type !== roundTypes.fastestFreeText;
   const answerRound =
     definition &&
-    ![roundTypes.pairingPrototype, roundTypes.spellingBee].includes(
+    ![
+      roundTypes.pairingPrototype,
+      roundTypes.spellingBee,
+      roundTypes.charades,
+    ].includes(
       definition.type,
     );
   submissionsHeading.hidden = !answerRound;
@@ -303,14 +379,20 @@ function renderGame(snapshot) {
   roundSelection.hidden = ![phases.lobby, phases.intermission].includes(
     state.phase,
   );
-  groupingPanel.hidden = isSpelling || !(
+  const bespokeRoundActive =
+    (isSpelling || isCharades) &&
+    ![phases.lobby, phases.intermission].includes(state.phase);
+  groupingPanel.hidden = bespokeRoundActive || !(
     state.phase === phases.lobby ||
     state.phase === phases.intermission ||
-    definition?.type === roundTypes.pairingPrototype
+    [roundTypes.pairingPrototype, roundTypes.charades].includes(definition?.type)
   );
 
   if (isSpelling) {
     renderSpellingHost(state, round);
+  }
+  if (isCharades) {
+    renderCharadesHost(state, round);
   }
 
   const nextLabels = {
@@ -318,6 +400,8 @@ function renderGame(snapshot) {
     [phases.question]:
       isSpelling
         ? "MARK THE SPELLING"
+        : isCharades
+          ? "SHOW LEADERBOARD"
         : definition?.flow?.question?.hostLabel ?? "CLOSE ANSWERS",
     [phases.marking]: "REVEAL RESULTS",
     [phases.reveal]: isSpelling ? "NEXT PLAYER" : "SHOW LEADERBOARD",
@@ -327,6 +411,26 @@ function renderGame(snapshot) {
 
   nextButton.textContent = nextLabels[state.phase] ?? "NEXT";
   nextButton.disabled = isSpelling && state.phase === phases.question;
+}
+
+function renderCharadesHost(state, round) {
+  const active = latestGrouping.activeGroup;
+  charadesGroup.textContent =
+    active?.members?.map((member) => member.name).join(" · ") ??
+    "No group selected";
+  const prompt =
+    charadesPrompts[(round?.promptIndex ?? 0) % charadesPrompts.length];
+  charadesPrompt.textContent = prompt;
+  charadesOverlay.textContent =
+    round?.displayMode === "overlay"
+      ? "HIDE ACTIVE OVERLAY"
+      : "SHOW ACTIVE OVERLAY";
+  charadesStartTimer.disabled = state.phase !== phases.question;
+  charadesStopTimer.disabled =
+    state.phase !== phases.question || round?.timer?.status !== "running";
+  charadesScoreButtons.querySelectorAll("button").forEach((button) => {
+    button.disabled = state.phase !== phases.question || !active;
+  });
 }
 
 function renderSpellingHost(state, round) {
@@ -356,6 +460,17 @@ async function markCurrentSpelling(correct, button) {
     (gameSnapshot?.round?.itemIndex ?? 0) % spellingBeeWords.length
   ];
   await runAction(button, () => markSpelling({ word: item.word, correct }));
+}
+
+async function awardCurrentCharadesGroup(points, button) {
+  const groupId = latestGrouping.activeGroupId;
+  if (!groupId) return;
+  await runAction(button, () =>
+    awardGroupPoints(groupId, points, {
+      roundType: roundTypes.charades,
+      promptIndex: gameSnapshot?.round?.promptIndex ?? 0,
+    }),
+  );
 }
 
 function renderGrouping() {
@@ -568,7 +683,13 @@ function markingButton(playerId, status, label) {
   return button;
 }
 
-function phaseTitle(phase) {
+function phaseTitle(phase, definition) {
+  if (phase === phases.question && definition?.type === roundTypes.charades) {
+    return "Round in progress";
+  }
+  if (phase === phases.question && definition?.type === roundTypes.spellingBee) {
+    return "Spell the word";
+  }
   return {
     [phases.lobby]: "Lobby",
     [phases.question]: "Accepting answers",
@@ -600,3 +721,37 @@ function escapeHtml(value) {
   element.textContent = value;
   return element.innerHTML;
 }
+
+document.addEventListener("keydown", (event) => {
+  if (
+    gameSnapshot?.definition?.type !== roundTypes.charades ||
+    gameSnapshot?.state.phase !== phases.question ||
+    ["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement?.tagName)
+  ) {
+    return;
+  }
+  const action = {
+    ArrowLeft: () => cycleActiveGroup(-1),
+    ArrowRight: () => cycleActiveGroup(1),
+    "[": () => moveCharadesPrompt(-1),
+    "]": () => moveCharadesPrompt(1),
+    " ": () =>
+      gameSnapshot?.round?.timer?.status === "running"
+        ? stopRoundTimer()
+        : startRoundTimer(charadesSeconds.value),
+  }[event.key];
+  if (action) {
+    event.preventDefault();
+    Promise.resolve(action()).catch((error) =>
+      console.error("[BBQ host] Keyboard control failed.", error),
+    );
+    return;
+  }
+  if (/^[0-5]$/.test(event.key)) {
+    event.preventDefault();
+    const button = charadesScoreButtons.querySelector(
+      `[data-charades-points="${event.key}"]`,
+    );
+    awardCurrentCharadesGroup(event.key, button);
+  }
+});

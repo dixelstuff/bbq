@@ -5,30 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BBQ — Host</title>
     <script>
-      let hostAccessGranted = false;
-
       try {
-        hostAccessGranted =
-          sessionStorage.getItem("bbq.hostAccess") === "granted";
+        document.documentElement.dataset.hostAccess =
+          sessionStorage.getItem("bbq.hostAccess") === "granted"
+            ? "granted"
+            : "locked";
       } catch {
-        hostAccessGranted = false;
-      }
-
-      while (!hostAccessGranted) {
-        const password = window.prompt("Enter the BBQ Host password");
-        if (password === "bigfat") {
-          sessionStorage.setItem("bbq.hostAccess", "granted");
-          hostAccessGranted = true;
-        } else if (password === null) {
-          window.location.replace("/bbq/");
-          break;
-        } else {
-          window.alert("Incorrect Host password.");
-        }
+        document.documentElement.dataset.hostAccess = "locked";
       }
     </script>
   </head>
   <body>
+    <dialog id="host-access-dialog" class="host-access-dialog">
+      <form id="host-access-form" class="stack">
+        <p class="eyebrow">BBQ Control Room</p>
+        <h1>Host access</h1>
+        <label for="host-password">Password</label>
+        <input id="host-password" type="password" autocomplete="current-password" />
+        <p id="host-access-error" class="status" role="alert"></p>
+        <button type="submit">ENTER</button>
+        <a href="/bbq/">BACK TO PLAYER</a>
+      </form>
+    </dialog>
     <main>
       <section class="stack">
         <p class="eyebrow">Current cue</p>
@@ -53,8 +51,14 @@
       <section id="grouping-panel" class="grouping-panel stack">
         <h2>Groups</h2>
         <div class="grouping-actions">
+          <button id="generate-individuals" class="secondary" type="button">
+            INDIVIDUALS
+          </button>
           <button id="generate-pairs" class="secondary" type="button">
             PAIRS
+          </button>
+          <button id="generate-threes" class="secondary" type="button">
+            GROUPS OF THREE
           </button>
           <button id="generate-teams" class="secondary" type="button">
             TWO TEAMS
@@ -122,6 +126,42 @@
         </div>
       </section>
 
+      <section id="charades-host" class="charades-host stack" hidden>
+        <div class="charades-active">
+          <p class="eyebrow">Active group</p>
+          <h2 id="charades-group">No group selected</h2>
+        </div>
+        <div class="charades-prompt-card">
+          <p class="eyebrow">Secret prompt — Host only</p>
+          <h2 id="charades-prompt"></h2>
+        </div>
+        <div class="charades-navigation">
+          <button id="charades-previous-group" class="secondary" type="button">PREVIOUS GROUP</button>
+          <button id="charades-next-group" class="secondary" type="button">NEXT GROUP</button>
+          <button id="charades-previous-prompt" class="secondary" type="button">PREVIOUS PROMPT</button>
+          <button id="charades-next-prompt" class="secondary" type="button">NEXT PROMPT</button>
+        </div>
+        <div class="charades-timer-controls">
+          <label>Seconds <input id="charades-seconds" type="number" min="1" max="600" value="60" /></label>
+          <button id="charades-start-timer" type="button">START TIMER</button>
+          <button id="charades-stop-timer" class="secondary" type="button">STOP TIMER</button>
+          <button id="charades-overlay" class="secondary" type="button">SHOW ACTIVE OVERLAY</button>
+        </div>
+        <div>
+          <p class="eyebrow">Award points</p>
+          <div id="charades-score-buttons" class="charades-score-buttons">
+            <button type="button" data-charades-points="0">0</button>
+            <button type="button" data-charades-points="1">1</button>
+            <button type="button" data-charades-points="2">2</button>
+            <button type="button" data-charades-points="3">3</button>
+            <button type="button" data-charades-points="4">4</button>
+            <button type="button" data-charades-points="5">5</button>
+          </div>
+        </div>
+        <button id="charades-leaderboard" class="secondary" type="button">SHOW LEADERBOARD</button>
+        <p class="host-shortcuts">Keyboard: ←/→ group · [/] prompt · Space timer · 0–5 award</p>
+      </section>
+
       <section class="stack">
         <h2 id="submissions-heading" hidden>Submissions</h2>
         <p id="empty-submissions" hidden>No answers submitted yet.</p>
@@ -157,6 +197,30 @@
         <button id="reset-cancel" class="secondary" type="button">CANCEL</button>
       </section>
     </dialog>
+    <script>
+      const hostAccessDialog = document.querySelector("#host-access-dialog");
+      if (document.documentElement.dataset.hostAccess !== "granted") {
+        hostAccessDialog.showModal();
+      }
+      document
+        .querySelector("#host-access-form")
+        .addEventListener("submit", (event) => {
+          event.preventDefault();
+          const password = document.querySelector("#host-password");
+          const error = document.querySelector("#host-access-error");
+          if (password.value !== "bigfat") {
+            error.textContent = "Incorrect Host password.";
+            password.select();
+            return;
+          }
+          sessionStorage.setItem("bbq.hostAccess", "granted");
+          document.documentElement.dataset.hostAccess = "granted";
+          window.dispatchEvent(new Event("bbq-host-unlocked"));
+          error.textContent = "";
+          password.value = "";
+          hostAccessDialog.close();
+        });
+    </script>
     <script type="module" src="./main.js"></script>
   </body>
 </html>

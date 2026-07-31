@@ -678,6 +678,23 @@ function renderPlayerGame() {
     return;
   }
 
+  if (
+    definition?.type === roundTypes.charades &&
+    phase === phases.question
+  ) {
+    pairView.hidden = false;
+    const active = playerGroup?.id === groupingSnapshot.activeGroupId;
+    pairStatus.textContent = active
+      ? "YOU’RE UP"
+      : playerGroupLabel(playerGroup, groupingSnapshot.mode);
+    pairMembers.textContent =
+      playerGroup?.members.map((member) => member.name).join("\n") ?? "";
+    pairWaiting.textContent = active
+      ? "Head to the playing area!"
+      : "Enjoy the questionable acting…";
+    return;
+  }
+
   if (phase === phases.question && definition) {
     questionView.hidden = false;
     const playerMedia = mediaForAudience(definition, "player");
