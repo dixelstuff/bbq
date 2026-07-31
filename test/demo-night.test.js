@@ -14,6 +14,7 @@ import {
   scoreDefinitionVotes,
   scoreRound,
 } from "../shared/round-types.js";
+import { shouldApplyRelease } from "../shared/session-state.js";
 
 test("the supplied demo-night sections contain the complete question pack", () => {
   assert.deepEqual(
@@ -114,4 +115,11 @@ test("all demo-night title media is explicitly Display-only", () => {
   ]) {
     assert.equal(round.media.title.visibility, "display");
   }
+});
+
+test("stale clients cannot roll the session back to an older release", () => {
+  const current = { releaseId: "new", releaseOrder: 200 };
+  assert.equal(shouldApplyRelease(current, "old", 100), false);
+  assert.equal(shouldApplyRelease(current, "new", 200), false);
+  assert.equal(shouldApplyRelease(current, "newer", 300), true);
 });

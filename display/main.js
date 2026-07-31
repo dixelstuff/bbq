@@ -4,7 +4,7 @@ import QRCode from "qrcode";
 import { observeGame, phases } from "../shared/game-engine.js";
 import { observePlayers } from "../shared/players.js";
 import { observeGrouping } from "../shared/grouping.js";
-import { releaseId } from "../shared/release.js";
+import { releaseId, releaseOrder } from "../shared/release.js";
 import { ensureSessionRelease } from "../shared/session-state.js";
 import { resolveDisplayMedia } from "./media.js";
 import {
@@ -58,7 +58,7 @@ let players = [];
 let gameSnapshot;
 let groupingSnapshot = { groups: [] };
 
-await ensureSessionRelease(releaseId);
+await ensureSessionRelease(releaseId, releaseOrder);
 
 QRCode.toCanvas(qrCanvas, joinUrl, {
   width: 520,

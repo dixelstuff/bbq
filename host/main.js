@@ -42,7 +42,7 @@ import {
   setGroupingPresentation,
 } from "../shared/grouping.js";
 import { observePlayers } from "../shared/players.js";
-import { releaseId } from "../shared/release.js";
+import { releaseId, releaseOrder } from "../shared/release.js";
 import { roundTypes } from "../shared/round-types.js";
 import {
   ensureSessionRelease,
@@ -120,7 +120,7 @@ if (document.documentElement.dataset.hostAccess !== "granted") {
   );
 }
 
-await ensureSessionRelease(releaseId);
+await ensureSessionRelease(releaseId, releaseOrder);
 
 renderRoundOptions();
 

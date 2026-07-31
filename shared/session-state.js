@@ -78,6 +78,7 @@ export async function resetGame() {
     // answers, scores, rounds, and any future per-game state in one operation.
     return {
       releaseId: session?.releaseId ?? null,
+      releaseOrder: session?.releaseOrder ?? null,
       hostConnections: session?.hostConnections ?? null,
       state: {
         step: firstStep,
@@ -91,13 +92,14 @@ export async function resetGame() {
   return validSessionState(result.snapshot.val()?.state);
 }
 
-export async function ensureSessionRelease(releaseId) {
+export async function ensureSessionRelease(releaseId, releaseOrder = 0) {
   await signIn();
   return runTransaction(ref(database, sessionPath), (session) => {
-    if (session?.releaseId === releaseId) return;
+    if (!shouldApplyRelease(session, releaseId, releaseOrder)) return;
     const state = validSessionState(session?.state);
     return {
       releaseId,
+      releaseOrder,
       hostConnections: session?.hostConnections ?? null,
       state: {
         step: firstStep,
@@ -107,4 +109,12 @@ export async function ensureSessionRelease(releaseId) {
       },
     };
   });
+}
+
+export function shouldApplyRelease(session, releaseId, releaseOrder) {
+  if (session?.releaseId === releaseId) return false;
+  return !(
+    Number.isFinite(session?.releaseOrder) &&
+    session.releaseOrder >= releaseOrder
+  );
 }

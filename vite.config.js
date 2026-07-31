@@ -5,11 +5,17 @@ import { defineConfig } from "vite";
 const releaseId = execFileSync("git", ["rev-parse", "HEAD"], {
   encoding: "utf8",
 }).trim();
+const releaseOrder = Number(
+  execFileSync("git", ["show", "-s", "--format=%ct", "HEAD"], {
+    encoding: "utf8",
+  }).trim(),
+);
 
 export default defineConfig({
   base: "/bbq/",
   define: {
     __BBQ_RELEASE_ID__: JSON.stringify(releaseId),
+    __BBQ_RELEASE_ORDER__: JSON.stringify(releaseOrder),
   },
   build: {
     rollupOptions: {
