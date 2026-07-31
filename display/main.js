@@ -62,6 +62,7 @@ let gameSnapshot;
 let groupingSnapshot = { groups: [] };
 let progressiveRevealRoundKey;
 let progressiveRevealCount = 0;
+let progressiveRevealFinalized = false;
 
 await ensureSessionRelease(releaseId, releaseOrder);
 setupDisplayAudio(enableAudioButton);
@@ -193,8 +194,10 @@ function renderGame(snapshot) {
       return;
     }
     showOnly(revealScreen);
+    revealScreen.classList.toggle("mcq-results", definition.type === roundTypes.mcq);
     revealRoundType.textContent = "";
-    revealQuestion.textContent = "";
+    revealQuestion.textContent =
+      definition.type === roundTypes.mcq ? definition.question : "";
     const revealedAnswer =
       definition.type === roundTypes.closestWins
         ? formatNumericAnswer(definition.correctValue)
@@ -208,11 +211,33 @@ function renderGame(snapshot) {
           ? `${definition.word}: ${revealedAnswer ?? ""}`
           : revealedAnswer ?? "";
     const progressive = usesProgressiveFreeTextReveal(definition);
-    const revealCount = progressive
-      ? round?.revealCount ?? 0
-      : submissions.length;
-    const visibleSubmissions = submissions.slice(0, revealCount);
+    revealAnswers.classList.toggle("free-text-stage", progressive);
+    revealAnswers.classList.toggle("mcq-summary", definition.type === roundTypes.mcq);
+    if (definition.type === roundTypes.mcq) {
+      revealAnswers.classList.remove("is-final-grid");
+      revealAnswers.classList.remove("is-finalizing");
+      renderMcqSummary(submissions);
+      progressiveRevealRoundKey = undefined;
+      progressiveRevealCount = 0;
+      progressiveRevealFinalized = false;
+      return;
+    }
+    const revealedIds = round?.revealedSubmissionIds ?? [];
+    const revealCount = progressive ? revealedIds.length : submissions.length;
+    const visibleSubmissions = progressive
+      ? revealedIds
+          .map((playerId) =>
+            submissions.find((submission) => submission.playerId === playerId),
+          )
+          .filter(Boolean)
+      : submissions;
     const showPoints = progressive ? Boolean(round?.revealPoints) : true;
+    const finalGrid = progressive && Boolean(round?.revealGridFinalized);
+    revealAnswers.classList.toggle("is-final-grid", finalGrid);
+    revealAnswers.classList.toggle(
+      "is-finalizing",
+      finalGrid && !progressiveRevealFinalized,
+    );
     const revealKey = `${definition.id}:${round?.startedAt ?? ""}`;
     const newAnswerArrived =
       progressive &&
@@ -224,24 +249,27 @@ function renderGame(snapshot) {
       revealCount === progressiveRevealCount + 1
         ? revealCount - 2
         : -1;
-    revealAnswers.classList.toggle("free-text-stage", progressive);
     revealAnswers.replaceChildren(
       ...visibleSubmissions.map((submission, index) => {
         const item = document.createElement("li");
         item.className = submission.status;
         if (progressive) {
           item.className = `free-text-card${
-            index === visibleSubmissions.length - 1 ? " is-featured" : ""
+            index === visibleSubmissions.length - 1 && !finalGrid
+              ? " is-featured"
+              : ""
           }${
-            index === visibleSubmissions.length - 1 && newAnswerArrived
+            index === visibleSubmissions.length - 1 &&
+            newAnswerArrived &&
+            !finalGrid
               ? " is-arriving"
               : ""
           }${index === justSettledIndex ? " just-settled" : ""}`;
           item.innerHTML = `<strong>${escapeHtml(
             submission.playerName,
-          )}</strong><span class="free-text-answer">${escapeHtml(
+          )}</strong><span class="free-text-answer">“${escapeHtml(
             submission.answer,
-          )}</span><span class="points-badge${
+          )}”</span><span class="points-badge${
             showPoints ? " is-visible" : ""
           }">+${submission.points ?? 0}</span>`;
         } else if (definition.type === roundTypes.closestWins) {
@@ -274,9 +302,11 @@ function renderGame(snapshot) {
     if (progressive) {
       progressiveRevealRoundKey = revealKey;
       progressiveRevealCount = revealCount;
+      progressiveRevealFinalized = finalGrid;
     } else {
       progressiveRevealRoundKey = undefined;
       progressiveRevealCount = 0;
+      progressiveRevealFinalized = false;
     }
     return;
   }
@@ -311,6 +341,43 @@ function renderGame(snapshot) {
 
   showOnly(holdingScreen);
   holdingText.textContent = "WAITING FOR NEXT ROUND…";
+}
+
+function renderMcqSummary(submissions) {
+  const groups = [
+    ["CORRECT", submissions.filter((submission) => submission.status === "correct")],
+    ["INCORRECT", submissions.filter((submission) => submission.status !== "correct")],
+  ];
+  revealAnswers.replaceChildren(
+    ...groups.map(([heading, entries]) => {
+      const column = document.createElement("li");
+      const title = document.createElement("h2");
+      const names = document.createElement("ul");
+      column.className = `mcq-result-column ${heading.toLowerCase()}`;
+      title.textContent = heading;
+      names.replaceChildren(
+        ...entries.map((submission) => {
+          const row = document.createElement("li");
+          const name = document.createElement("strong");
+          name.textContent = submission.playerName;
+          row.append(name);
+          if (submission.status === "correct" && submission.points === 2) {
+            const bonus = document.createElement("span");
+            bonus.textContent = "FASTEST CORRECT · +1 SPEED BONUS";
+            row.append(bonus);
+          }
+          return row;
+        }),
+      );
+      if (!entries.length) {
+        const empty = document.createElement("li");
+        empty.textContent = "—";
+        names.append(empty);
+      }
+      column.append(title, names);
+      return column;
+    }),
+  );
 }
 
 function showOnly(activeScreen) {

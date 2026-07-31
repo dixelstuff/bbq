@@ -939,6 +939,8 @@ export async function scoreAndReveal() {
         submissions,
         revealCount: progressiveReveal ? 0 : scored.length,
         revealPoints: !progressiveReveal,
+        revealedSubmissionIds: progressiveReveal ? [] : scored.map((item) => item.playerId),
+        revealGridFinalized: !progressiveReveal,
       },
       state: {
         ...state,
@@ -969,9 +971,53 @@ export async function revealNextAnswer() {
   });
 }
 
+export async function revealSubmission(playerId) {
+  return transactSession((session, state) => {
+    const definition = getRound(state.gameId, state.roundId);
+    if (
+      state.phase !== phases.reveal ||
+      !usesProgressiveFreeTextReveal(definition) ||
+      !session.round?.submissions?.[playerId]
+    ) return;
+    const revealed = session.round.revealedSubmissionIds ?? [];
+    if (revealed.includes(playerId) || session.round.revealGridFinalized) return;
+    const nextRevealed = [...revealed, playerId];
+    return {
+      ...session,
+      round: {
+        ...session.round,
+        revealedSubmissionIds: nextRevealed,
+        revealCount: nextRevealed.length,
+      },
+    };
+  });
+}
+
+export async function finalizeProgressiveReveal() {
+  return transactSession((session, state) => {
+    const definition = getRound(state.gameId, state.roundId);
+    if (
+      state.phase !== phases.reveal ||
+      !usesProgressiveFreeTextReveal(definition) ||
+      !session.round
+    ) return;
+    const total = Object.keys(session.round.submissions ?? {}).length;
+    if ((session.round.revealedSubmissionIds ?? []).length !== total) return;
+    return {
+      ...session,
+      round: { ...session.round, revealGridFinalized: true },
+    };
+  });
+}
+
 export async function revealRoundPoints() {
   return transactSession((session, state) => {
-    if (state.phase !== phases.reveal || !session.round) return;
+    if (
+      state.phase !== phases.reveal ||
+      !session.round ||
+      (usesProgressiveFreeTextReveal(getRound(state.gameId, state.roundId)) &&
+        !session.round.revealGridFinalized)
+    ) return;
     return {
       ...session,
       round: {

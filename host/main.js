@@ -19,7 +19,8 @@ import {
   observeGame,
   overrideSubmissionPoints,
   phases,
-  revealNextAnswer,
+  finalizeProgressiveReveal,
+  revealSubmission,
   revealRoundPoints,
   scoreAndReveal,
   showLeaderboard,
@@ -75,7 +76,7 @@ const actionStatus = document.querySelector("#action-status");
 const leaderboardToggle = document.querySelector("#leaderboard-toggle");
 const skipButton = document.querySelector("#skip-round");
 const revealControls = document.querySelector("#reveal-controls");
-const revealNextButton = document.querySelector("#reveal-next-answer");
+const revealGridButton = document.querySelector("#reveal-show-grid");
 const revealPointsButton = document.querySelector("#reveal-points");
 const phaseLabel = document.querySelector("#phase");
 const cueHeading = document.querySelector("#cue");
@@ -203,18 +204,20 @@ nextButton.addEventListener("click", async () => {
     gameSnapshot?.definition?.type === roundTypes.charades;
   const definitionRound =
     gameSnapshot?.definition?.type === roundTypes.myDefinition;
-  const revealCount = gameSnapshot?.round?.revealCount ?? 0;
   const revealTotal = gameSnapshot?.submissions?.length ?? 0;
+  const revealedCount = gameSnapshot?.round?.revealedSubmissionIds?.length ?? 0;
   const progressiveReveal = usesProgressiveFreeTextReveal(
     gameSnapshot?.definition,
   );
   const revealAction = !progressiveReveal
     ? finishRound
-    : revealCount < revealTotal
-      ? revealNextAnswer
-      : !gameSnapshot?.round?.revealPoints && revealTotal > 0
-        ? revealRoundPoints
-        : finishRound;
+    : revealedCount < revealTotal
+      ? null
+      : !gameSnapshot?.round?.revealGridFinalized
+        ? finalizeProgressiveReveal
+        : !gameSnapshot?.round?.revealPoints && revealTotal > 0
+          ? revealRoundPoints
+          : finishRound;
   const action = {
     [phases.lobby]: () => beginRound(roundSelect.value),
     [phases.opening]: openRoundQuestion,
@@ -252,8 +255,8 @@ leaderboardToggle.addEventListener("click", () =>
 skipButton.addEventListener("click", () =>
   runAction(skipButton, skipToNextRound),
 );
-revealNextButton.addEventListener("click", () =>
-  runAction(revealNextButton, revealNextAnswer),
+revealGridButton.addEventListener("click", () =>
+  runAction(revealGridButton, finalizeProgressiveReveal),
 );
 revealPointsButton.addEventListener("click", () =>
   runAction(revealPointsButton, revealRoundPoints),
@@ -311,6 +314,13 @@ document.querySelector("#show-groups").addEventListener("click", (event) =>
 );
 
 submissionsList.addEventListener("click", async (event) => {
+  const revealButton = event.target.closest("button[data-reveal-player]");
+  if (revealButton) {
+    await runAction(revealButton, () =>
+      revealSubmission(revealButton.dataset.revealPlayer),
+    );
+    return;
+  }
   const pointsButton = event.target.closest("button[data-manual-points]");
   if (pointsButton) {
     await runAction(pointsButton, () =>
@@ -457,6 +467,11 @@ function renderGame(snapshot) {
     renderCharadesHost(state, round);
   }
 
+  const stagedReveal =
+    state.phase === phases.reveal &&
+    usesProgressiveFreeTextReveal(definition) &&
+    submissions.length > 0;
+
   const nextLabels = {
     [phases.lobby]: "START GAME",
     [phases.opening]: "OPEN QUESTION",
@@ -475,17 +490,22 @@ function renderGame(snapshot) {
       ? "NEXT PLAYER"
       : !usesProgressiveFreeTextReveal(definition)
         ? "NEXT QUESTION"
-        : (round?.revealCount ?? 0) < submissions.length
-          ? "REVEAL NEXT ANSWER"
-          : !round?.revealPoints && submissions.length > 0
-            ? "REVEAL POINTS"
-            : "NEXT QUESTION",
+        : (round?.revealedSubmissionIds?.length ?? 0) < submissions.length
+          ? "CHOOSE AN ANSWER TO REVEAL"
+          : !round?.revealGridFinalized
+            ? "SHOW ALL ANSWERS"
+            : !round?.revealPoints && submissions.length > 0
+              ? "REVEAL POINTS"
+              : "NEXT QUESTION",
     [phases.leaderboard]: "RETURN TO ROUND",
     [phases.intermission]: "START SELECTED ROUND",
   };
 
   nextButton.textContent = nextLabels[state.phase] ?? "NEXT";
-  nextButton.disabled = isSpelling && state.phase === phases.question;
+  nextButton.disabled =
+    (isSpelling && state.phase === phases.question) ||
+    (stagedReveal &&
+      (round?.revealedSubmissionIds?.length ?? 0) < submissions.length);
   leaderboardToggle.textContent =
     state.phase === phases.leaderboard
       ? "RETURN TO ROUND"
@@ -496,16 +516,14 @@ function renderGame(snapshot) {
     phases.marking,
     phases.voting,
   ].includes(state.phase);
-  const stagedReveal =
-    state.phase === phases.reveal &&
-    usesProgressiveFreeTextReveal(definition) &&
-    submissions.length > 0;
   revealControls.hidden = !stagedReveal;
-  revealNextButton.disabled =
-    !stagedReveal || (round?.revealCount ?? 0) >= submissions.length;
+  revealGridButton.disabled =
+    !stagedReveal ||
+    (round?.revealedSubmissionIds?.length ?? 0) < submissions.length ||
+    Boolean(round?.revealGridFinalized);
   revealPointsButton.disabled =
     !stagedReveal ||
-    (round?.revealCount ?? 0) < submissions.length ||
+    !round?.revealGridFinalized ||
     Boolean(round?.revealPoints);
 }
 
@@ -742,6 +760,9 @@ function renderSubmissions(submissions, phase) {
   const signature = JSON.stringify({
     phase,
     roundId: definition?.id,
+    revealedSubmissionIds: gameSnapshot?.round?.revealedSubmissionIds,
+    revealGridFinalized: gameSnapshot?.round?.revealGridFinalized,
+    revealPoints: gameSnapshot?.round?.revealPoints,
     submissions: submissions.map((submission) => ({
       playerId: submission.playerId,
       answer: submission.answer,
@@ -767,6 +788,23 @@ function renderSubmissions(submissions, phase) {
       controls.className = "mark-actions";
 
       if (
+        phase === phases.reveal &&
+        usesProgressiveFreeTextReveal(definition)
+      ) {
+        const revealed = gameSnapshot?.round?.revealedSubmissionIds?.includes(
+          submission.playerId,
+        );
+        if (revealed) {
+          controls.textContent = "REVEALED";
+        } else {
+          const reveal = document.createElement("button");
+          reveal.type = "button";
+          reveal.className = "small-button";
+          reveal.dataset.revealPlayer = submission.playerId;
+          reveal.textContent = "REVEAL";
+          controls.append(reveal);
+        }
+      } else if (
         phase === phases.marking &&
         definition?.type === roundTypes.closestWins
       ) {

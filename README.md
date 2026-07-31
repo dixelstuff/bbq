@@ -125,5 +125,5 @@ Pushes to `main` deploy automatically to GitHub Pages:
 - `https://dixelstuff.github.io/bbq/host/`
 
 The Host URL requests the lightweight party password directly. The Player page
-also offers Host access when no Host is connected. Display is not included in
+does not expose Host access. Display is not included in
 the deployed artifact.

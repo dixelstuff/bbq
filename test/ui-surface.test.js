@@ -7,12 +7,14 @@ import {
   usesProgressiveFreeTextReveal,
 } from "../shared/round-types.js";
 
-test("the Player surface contains no Host entry or password gate", async () => {
-  const [html, script] = await Promise.all([
+test("neither public Player shell contains Host entry or password UI", async () => {
+  const [rootHtml, playerHtml, script] = await Promise.all([
+    readFile(new URL("../index.html", import.meta.url), "utf8"),
     readFile(new URL("../player/index.html", import.meta.url), "utf8"),
     readFile(new URL("../player/main.js", import.meta.url), "utf8"),
   ]);
-  assert.doesNotMatch(html, /join as host|host-dialog|host-password/i);
+  assert.doesNotMatch(rootHtml, /join as host|host-dialog|host-password/i);
+  assert.doesNotMatch(playerHtml, /join as host|host-dialog|host-password/i);
   assert.doesNotMatch(script, /hostOpenButton|hostPassword|observeHostConnected/);
 });
 

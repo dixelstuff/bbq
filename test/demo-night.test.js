@@ -87,8 +87,25 @@ test("MCQ scoring accepts alternatives and remains case-insensitive", () => {
       { playerId: "b", answer: "flying squirrel" },
     ]).map(({ status, points }) => ({ status, points })),
     [
-      { status: "correct", points: 1 },
+      { status: "correct", points: 2 },
       { status: "incorrect", points: 0 },
+    ],
+  );
+});
+
+test("MCQ speed bonus goes to the fastest correct answer, not fastest submission", () => {
+  const round = mcqRounds[0];
+  const scored = scoreRound(round, [
+    { playerId: "fast-wrong", answer: "Russia", submittedAt: 1 },
+    { playerId: "first-correct", answer: "France", submittedAt: 2 },
+    { playerId: "later-correct", answer: "France", submittedAt: 3 },
+  ]);
+  assert.deepEqual(
+    scored.map(({ playerId, points }) => ({ playerId, points })),
+    [
+      { playerId: "fast-wrong", points: 0 },
+      { playerId: "first-correct", points: 2 },
+      { playerId: "later-correct", points: 1 },
     ],
   );
 });

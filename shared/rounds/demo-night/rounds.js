@@ -44,7 +44,8 @@ const answerRound = ({
 
 const exactScoring = {
   strategy: scoringStrategies.exactAnswer,
-  correctPoints: 1,
+  firstCorrectPoints: 2,
+  otherCorrectPoints: 1,
 };
 
 export const mcqRounds = [

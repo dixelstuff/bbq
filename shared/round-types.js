@@ -82,12 +82,19 @@ export function scoreRound(round, orderedSubmissions) {
       round.answer,
       ...(round.acceptedAnswers ?? []),
     ].map(normalizeComparableAnswer);
+    let firstCorrect = true;
     return orderedSubmissions.map((submission) => {
       const correct = accepted.includes(normalizeComparableAnswer(submission.answer));
+      const points = correct
+        ? firstCorrect
+          ? round.scoring.firstCorrectPoints ?? round.scoring.correctPoints ?? 1
+          : round.scoring.otherCorrectPoints ?? round.scoring.correctPoints ?? 1
+        : 0;
+      if (correct) firstCorrect = false;
       return {
         ...submission,
         status: correct ? "correct" : "incorrect",
-        points: correct ? round.scoring.correctPoints ?? 1 : 0,
+        points,
       };
     });
   }
