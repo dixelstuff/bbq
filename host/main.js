@@ -164,20 +164,17 @@ function renderGame(snapshot) {
 const simulatorPanel = document.querySelector("#simulator-panel");
 let simulatorApi;
 
-if (import.meta.env.DEV) {
-  simulatorPanel.hidden = false;
-  import("../shared/simulator.js").then((api) => {
+import("../shared/simulator.js")
+  .then((api) => {
     simulatorApi = api;
     setupSimulatorControls();
-  }).catch((error) => {
+  })
+  .catch((error) => {
     console.error("[BBQ host] Unable to load the player simulator.", error);
     simulatorPanel.querySelectorAll("button, input").forEach((control) => {
       control.disabled = true;
     });
   });
-} else {
-  simulatorPanel.remove();
-}
 
 function setupSimulatorControls() {
   document.querySelector("#sim-add").addEventListener("click", (event) =>
@@ -217,7 +214,6 @@ function simulatorPlayers() {
 }
 
 function renderSimulatorPlayers() {
-  if (!import.meta.env.DEV) return;
   const container = document.querySelector("#simulated-players");
   container.replaceChildren(
     ...simulatorPlayers().map((player) => {

@@ -276,6 +276,22 @@ dialog::backdrop {
   font-weight: 700;
 }
 
+.development-tools {
+  border-top: 1px solid #dedbd3;
+  padding-top: 0.75rem;
+}
+
+.development-tools > summary {
+  width: max-content;
+  cursor: pointer;
+  color: #6b6962;
+  font-size: 0.82rem;
+}
+
+.development-tools[open] > summary {
+  margin-bottom: 0.75rem;
+}
+
 .simulator-panel {
   border: 1px dashed #9a9488;
   border-radius: 0.9rem;
@@ -283,10 +299,10 @@ dialog::backdrop {
   background: #f7f5f0;
 }
 
-.simulator-panel h2 small {
+.simulator-help {
   color: #6b6962;
-  font-size: 0.65rem;
-  letter-spacing: 0.1em;
+  font-size: 0.85rem;
+  line-height: 1.45;
 }
 
 .simulator-controls,

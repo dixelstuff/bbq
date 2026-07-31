@@ -36,20 +36,27 @@
         </section>
       </section>
 
-      <section id="simulator-panel" class="simulator-panel stack" hidden>
-        <h2>Player simulator <small>DEVELOPMENT</small></h2>
-        <div class="simulator-controls">
-          <label>Players <input id="sim-count" type="number" min="1" max="30" value="3" /></label>
-          <button id="sim-add" class="secondary" type="button">ADD PLAYERS</button>
-          <button id="sim-remove" class="danger secondary" type="button">REMOVE ALL</button>
-        </div>
-        <div class="simulator-controls">
-          <label>Answer <input id="sim-answer" type="text" value="KOALA" /></label>
-          <label>Stagger ms <input id="sim-delay" type="number" min="0" value="250" /></label>
-          <button id="sim-submit" class="secondary" type="button">SUBMIT ALL</button>
-        </div>
-        <div id="simulated-players" class="simulated-players"></div>
-      </section>
+      <details id="development-tools" class="development-tools">
+        <summary>Development</summary>
+        <section id="simulator-panel" class="simulator-panel stack">
+          <h2>Player Simulator</h2>
+          <p class="simulator-help">
+            These players join the current Firebase session and appear on the
+            Host and Display like normal players.
+          </p>
+          <div class="simulator-controls">
+            <label>Players <input id="sim-count" type="number" min="1" max="30" value="3" /></label>
+            <button id="sim-add" class="secondary" type="button">ADD PLAYERS</button>
+            <button id="sim-remove" class="danger secondary" type="button">REMOVE ALL</button>
+          </div>
+          <div class="simulator-controls">
+            <label>Answer <input id="sim-answer" type="text" value="KOALA" /></label>
+            <label>Stagger ms <input id="sim-delay" type="number" min="0" value="250" /></label>
+            <button id="sim-submit" class="secondary" type="button">SUBMIT ALL</button>
+          </div>
+          <div id="simulated-players" class="simulated-players"></div>
+        </section>
+      </details>
 
       <section id="host-game" class="host-game stack" hidden>
         <img id="host-game-image" class="game-image host-game-image" alt="" />

@@ -6,14 +6,7 @@ import { validSessionState } from "./session-state.js";
 const sessionPath = "sessions/default";
 const simulatedPrefix = "simulated-player-";
 
-function assertDevelopment() {
-  if (!import.meta.env.DEV) {
-    throw new Error("The player simulator is available only in development");
-  }
-}
-
 async function transact(update) {
-  assertDevelopment();
   await signIn();
   return runTransaction(ref(database, sessionPath), (session) =>
     update(session ?? {}),
@@ -23,7 +16,7 @@ async function transact(update) {
 export async function addSimulatedPlayers(count) {
   const requested = Math.max(1, Math.min(30, Number(count) || 1));
 
-  return transact((session) => {
+  const result = await transact((session) => {
     const state = validSessionState(session.state);
     if (state.step !== 1) {
       return;
@@ -58,6 +51,12 @@ export async function addSimulatedPlayers(count) {
 
     return { ...session, players, connections };
   });
+
+  if (!result.committed) {
+    throw new Error("Simulated players can only join while the game is in the lobby");
+  }
+
+  return result;
 }
 
 export async function removeAllSimulatedPlayers() {
@@ -109,12 +108,10 @@ export async function setSimulatedPlayerConnected(playerId, connected) {
 }
 
 export async function submitSimulatedAnswer(playerId, answer) {
-  assertDevelopment();
   return submitAnswerForPlayer(playerId, String(answer).trim());
 }
 
 export async function submitAllSimulatedAnswers(players, answer, delayMs = 0) {
-  assertDevelopment();
   const eligible = players.filter(
     (player) => player.simulated && player.connected && !player.answer,
   );
