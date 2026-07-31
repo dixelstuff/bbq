@@ -7,6 +7,7 @@
   </head>
   <body>
     <main>
+      <div id="player-badge" class="player-badge" hidden></div>
       <form id="join-form" class="stack">
         <label for="name"><h1>Enter your name</h1></label>
         <input
@@ -25,6 +26,13 @@
       <button id="host-open" class="quiet-button" type="button">
         Join as host
       </button>
+      <p
+        id="game-connection-status"
+        class="game-connection-status"
+        role="status"
+        aria-live="polite"
+        hidden
+      ></p>
     </main>
     <dialog id="host-dialog">
       <form id="host-form" class="stack">

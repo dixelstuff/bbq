@@ -11,13 +11,42 @@ import { database, signIn } from "./firebase.js";
 const playersPath = "sessions/default/players";
 const connectedPath = ".info/connected";
 
-export async function maintainPlayerPresence(name, onPresenceChange = () => {}) {
+export async function maintainPlayerPresence(
+  name,
+  onPresenceChange = () => {},
+  signal,
+) {
   const user = await signIn();
   const playerRef = ref(database, `${playersPath}/${user.uid}`);
   let connected = false;
   let stopped = false;
   let writeQueue = Promise.resolve();
   let pendingConfirmations = [];
+  let stopConnectionObserver = () => {};
+  let stopPresenceObserver = () => {};
+
+  function stoppedError() {
+    return new DOMException("Player presence restoration was replaced", "AbortError");
+  }
+
+  function stop() {
+    if (stopped) {
+      return;
+    }
+
+    stopped = true;
+    stopConnectionObserver();
+    stopPresenceObserver();
+    rejectConfirmations(stoppedError());
+    signal?.removeEventListener("abort", stop);
+  }
+
+  if (signal?.aborted) {
+    stop();
+    throw stoppedError();
+  }
+
+  signal?.addEventListener("abort", stop, { once: true });
 
   async function writePresence() {
     if (stopped || !connected) {
@@ -59,7 +88,7 @@ export async function maintainPlayerPresence(name, onPresenceChange = () => {}) 
     return writeQueue;
   }
 
-  const stopConnectionObserver = onValue(
+  stopConnectionObserver = onValue(
     ref(database, connectedPath),
     (snapshot) => {
       connected = snapshot.val() === true;
@@ -71,7 +100,7 @@ export async function maintainPlayerPresence(name, onPresenceChange = () => {}) 
     rejectConfirmations,
   );
 
-  const stopPresenceObserver = onValue(
+  stopPresenceObserver = onValue(
     playerRef,
     (snapshot) => {
       const confirmed = snapshot.exists() && snapshot.val()?.name === name;
@@ -88,6 +117,11 @@ export async function maintainPlayerPresence(name, onPresenceChange = () => {}) 
 
   function confirmPresence() {
     return new Promise((resolve, reject) => {
+      if (stopped) {
+        reject(stoppedError());
+        return;
+      }
+
       pendingConfirmations.push({ resolve, reject });
 
       if (connected) {
@@ -102,11 +136,7 @@ export async function maintainPlayerPresence(name, onPresenceChange = () => {}) 
     refresh() {
       return confirmPresence();
     },
-    stop() {
-      stopped = true;
-      stopConnectionObserver();
-      stopPresenceObserver();
-    },
+    stop,
   };
 }
 

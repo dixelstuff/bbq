@@ -12,6 +12,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -199,6 +203,29 @@ dialog::backdrop {
 
 .status[data-error="true"] {
   color: #a3261e;
+}
+
+.player-badge {
+  position: fixed;
+  top: max(1rem, env(safe-area-inset-top));
+  right: max(1rem, env(safe-area-inset-right));
+  border: 1px solid #cfccc4;
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+  background: rgb(244 242 237 / 92%);
+  color: #6b6962;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.game-connection-status {
+  position: fixed;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  left: max(1rem, env(safe-area-inset-left));
+  color: #a3261e;
+  font-size: 0.9rem;
+  text-align: center;
 }
 
 @media (max-width: 760px) {

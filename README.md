@@ -12,9 +12,15 @@ presentation application and is deliberately excluded from the public build.
 
 ### Local Display
 
-Install dependencies once, then start only Display:
+The recommended workflow on the Mac is to double-click `Launch BBQ.command`.
+It updates `/Users/andrew/bbq`, installs any changed dependencies, and starts
+only the local Display.
+
+The equivalent Terminal commands are:
 
 ```sh
+cd /Users/andrew/bbq || exit 1
+git pull origin main
 npm install
 npm run display
 ```

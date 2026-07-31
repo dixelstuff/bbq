@@ -5,6 +5,7 @@ import { observeStep } from "../shared/session-state.js";
 const hostPassword = "bigfat";
 const hostAccessKey = "bbq.hostAccess";
 const playerNameKey = "bbq.playerName";
+const playerStepKey = "bbq.currentStep";
 const reconnectDelay = 4000;
 
 const form = document.querySelector("#join-form");
@@ -19,18 +20,26 @@ const hostPasswordInput = document.querySelector("#host-password");
 const hostError = document.querySelector("#host-error");
 const hostOpenButton = document.querySelector("#host-open");
 const hostCancelButton = document.querySelector("#host-cancel");
+const playerBadge = document.querySelector("#player-badge");
+const gameConnectionStatus = document.querySelector("#game-connection-status");
 
 let presence;
 let restoreAttempt;
 let reconnectTimer;
+let restoreController;
+let currentStep = loadSavedStep();
 
 observeStep((step) => {
+  currentStep = step;
+  saveStep(step);
   screen.textContent = `Waiting — screen ${step}`;
+  updatePlayerMode();
 }).catch(() => {
   screen.textContent = "Unable to connect";
 });
 
 const savedName = loadPlayerName();
+updatePlayerMode();
 if (savedName) {
   input.value = savedName;
   restorePresence();
@@ -46,21 +55,26 @@ form.addEventListener("submit", (event) => {
   }
 
   savePlayerName(name);
-  restorePresence();
+  updatePlayerMode();
+  restorePresence(true);
 });
 
 reconnectButton.addEventListener("click", () => restorePresence(true));
 
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
-    restorePresence();
+    restorePresence(true);
   }
 });
 
 // Mobile browsers may restore a page from their back-forward cache without a
 // full reload. The online event covers the separate network-return lifecycle.
-window.addEventListener("pageshow", restorePresence);
-window.addEventListener("online", restorePresence);
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted) {
+    restorePresence(true);
+  }
+});
+window.addEventListener("online", () => restorePresence(true));
 
 hostOpenButton.addEventListener("click", () => {
   hostError.textContent = "";
@@ -90,17 +104,35 @@ hostForm.addEventListener("submit", (event) => {
 function restorePresence(force = false) {
   const name = loadPlayerName();
 
-  if (!name || (restoreAttempt && !force)) {
+  if (!name) {
     return;
   }
+
+  if (restoreAttempt && !force) {
+    return;
+  }
+
+  if (force) {
+    presence?.stop();
+    presence = undefined;
+    restoreController?.abort();
+  }
+
+  const controller = new AbortController();
+  restoreController = controller;
 
   // Never carry a previous success message into a new restoration attempt.
   beginReconnecting(name);
 
   const attempt = presence
     ? presence.refresh()
-    : maintainPlayerPresence(name, handlePresenceChange).then(
+    : maintainPlayerPresence(name, handlePresenceChange, controller.signal).then(
         (playerPresence) => {
+          if (restoreController !== controller) {
+            playerPresence.stop();
+            return;
+          }
+
           presence = playerPresence;
         },
       );
@@ -116,7 +148,7 @@ function restorePresence(force = false) {
       showConnected(name);
     })
     .catch((error) => {
-      if (restoreAttempt !== attempt) {
+      if (restoreAttempt !== attempt || error?.name === "AbortError") {
         return;
       }
 
@@ -153,12 +185,20 @@ function handlePresenceChange(confirmed) {
 }
 
 function showReconnectTimeout() {
+  if (isGameStarted()) {
+    gameConnectionStatus.hidden = false;
+    gameConnectionStatus.dataset.error = "true";
+    gameConnectionStatus.textContent = "Connection lost. Reconnecting…";
+    return;
+  }
+
   reconnectButton.hidden = false;
   status.dataset.error = "true";
   status.textContent = "Still reconnecting. Tap below to try again.";
 }
 
 function showReconnecting(name) {
+  updateBadge(name);
   input.value = name;
   input.disabled = true;
   joinButton.disabled = true;
@@ -166,9 +206,11 @@ function showReconnecting(name) {
   reconnectButton.hidden = true;
   status.dataset.error = "false";
   status.textContent = "Reconnecting…";
+  gameConnectionStatus.hidden = true;
 }
 
 function showConnected(name) {
+  updateBadge(name);
   input.value = name;
   input.disabled = true;
   joinButton.disabled = true;
@@ -176,14 +218,49 @@ function showConnected(name) {
   reconnectButton.hidden = true;
   status.dataset.error = "false";
   status.textContent = `You’re in, ${name}.`;
+  gameConnectionStatus.hidden = true;
 }
 
 function showReconnectButton(error) {
   console.error("Unable to restore player presence", error);
+
+  if (isGameStarted()) {
+    gameConnectionStatus.hidden = false;
+    gameConnectionStatus.dataset.error = "true";
+    gameConnectionStatus.textContent = "Connection lost. Reconnecting…";
+    return;
+  }
+
   joinButton.hidden = true;
   reconnectButton.hidden = false;
   status.dataset.error = "true";
   status.textContent = "You’re disconnected. Tap below to reconnect.";
+}
+
+function isGameStarted() {
+  return currentStep > 1;
+}
+
+function updateBadge(name = loadPlayerName()) {
+  playerBadge.textContent = name;
+}
+
+function updatePlayerMode() {
+  const gameStarted = isGameStarted();
+  const name = loadPlayerName();
+
+  form.hidden = gameStarted;
+  hostOpenButton.hidden = gameStarted;
+  playerBadge.hidden = !gameStarted || !name;
+
+  if (gameStarted) {
+    updateBadge(name);
+    if (hostDialog.open) {
+      hostDialog.close();
+    }
+  } else {
+    gameConnectionStatus.hidden = true;
+  }
 }
 
 function loadPlayerName() {
@@ -200,5 +277,22 @@ function savePlayerName(name) {
   } catch {
     // Storage can be unavailable in strict private-browsing modes. The player
     // can still join for the lifetime of the page.
+  }
+}
+
+function loadSavedStep() {
+  try {
+    const step = Number.parseInt(localStorage.getItem(playerStepKey), 10);
+    return Number.isInteger(step) && step >= 1 ? step : 1;
+  } catch {
+    return 1;
+  }
+}
+
+function saveStep(step) {
+  try {
+    localStorage.setItem(playerStepKey, String(step));
+  } catch {
+    // The live Firebase value remains authoritative when storage is unavailable.
   }
 }
