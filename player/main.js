@@ -98,10 +98,18 @@ let gameRetryTimer;
 let hostConnected = false;
 let hostStatusKnown = false;
 let groupingSnapshot = { groups: [] };
+let answerDraftRoundKey;
+let confirmedLobbyName = loadPlayerName();
 
 debugPanel.hidden = !import.meta.env.DEV;
 screen.textContent = `Waiting — screen ${currentState.step}`;
 input.value = loadPlayerName();
+input.addEventListener("input", updateNameButtonState);
+answerInput.addEventListener("input", () => {
+  if (answerDraftRoundKey) {
+    sessionStorage.setItem(`bbq.answerDraft.${answerDraftRoundKey}`, answerInput.value);
+  }
+});
 updatePlayerMode();
 updateDebugPanel();
 startStateObserver();
@@ -255,7 +263,9 @@ async function submitName(rawName) {
     activeGeneration = currentState.generation;
     savePlayerIdentity(player.name, player.generation);
     input.value = player.name;
+    confirmedLobbyName = player.name;
     updatePlayerMode();
+    updateNameButtonState();
     updateDebugPanel();
 
     if (!presence && !restoreAttempt) {
@@ -443,6 +453,7 @@ function resetPlayerForNewGame() {
   clearRecoveryTimers();
   clearPlayerIdentity();
   input.value = "";
+  confirmedLobbyName = "";
   input.disabled = false;
   joinButton.disabled = false;
   joinButton.textContent = "JOIN";
@@ -650,7 +661,14 @@ function updatePlayerMode() {
     input.disabled = false;
     joinButton.disabled = false;
     joinButton.textContent = joined ? "UPDATE NAME" : "JOIN";
+    updateNameButtonState();
   }
+}
+
+function updateNameButtonState() {
+  if (!joined || currentState.step !== 1) return;
+  const editedName = input.value.trim().toUpperCase();
+  joinButton.disabled = !editedName || editedName === confirmedLobbyName;
 }
 
 function renderPlayerGame() {
@@ -755,6 +773,11 @@ function renderPlayerGame() {
     playerRoundType.textContent = definition.typeLabel;
     questionText.textContent = definition.question;
     const numeric = definition.type === roundTypes.closestWins;
+    const roundKey = `${definition.id}:${gameSnapshot?.round?.startedAt ?? ""}`;
+    if (answerDraftRoundKey !== roundKey) {
+      answerDraftRoundKey = roundKey;
+      answerInput.value = sessionStorage.getItem(`bbq.answerDraft.${roundKey}`) ?? "";
+    }
     const choices = definition.choices ?? [];
     answerInput.inputMode = numeric ? "decimal" : "text";
     answerInput.placeholder = numeric ? "Enter a number" : "";
@@ -782,7 +805,6 @@ function renderPlayerGame() {
       answerStatus.dataset.error = "false";
       answerStatus.textContent = "Answer submitted";
     } else {
-      answerInput.value = "";
       answerInput.disabled = false;
       answerButton.disabled = false;
       answerStatus.textContent = "";
@@ -818,7 +840,7 @@ function renderPlayerGame() {
 
   waitingMessage.textContent = "Waiting for next round…";
 
-  if (phase === phases.reveal && submission) {
+  if (phase === phases.reveal && submission && gameSnapshot?.round?.revealPoints) {
     playerResult.hidden = false;
     if (definition?.type === roundTypes.closestWins) {
       playerResult.innerHTML = `<strong>Your answer: ${escapeHtml(

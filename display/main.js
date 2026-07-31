@@ -117,7 +117,14 @@ function renderPlayerCounts() {
 }
 
 function renderGame(snapshot) {
-  const { state, definition, round, submissions, leaderboard: scores } = snapshot;
+  const {
+    state,
+    definition,
+    nextDefinition,
+    round,
+    submissions,
+    leaderboard: scores,
+  } = snapshot;
 
   if (groupingSnapshot.showAssignments) {
     renderGroupingPresentation();
@@ -183,8 +190,8 @@ function renderGame(snapshot) {
       return;
     }
     showOnly(revealScreen);
-    revealRoundType.textContent = definition.typeLabel;
-    revealQuestion.textContent = definition.question;
+    revealRoundType.textContent = "";
+    revealQuestion.textContent = "";
     const revealedAnswer =
       definition.type === roundTypes.closestWins
         ? formatNumericAnswer(definition.correctValue)
@@ -193,26 +200,28 @@ function renderGame(snapshot) {
           : definition.revealAnswer ?? definition.answer;
     revealCorrectAnswer.textContent =
       definition.type === roundTypes.bestFreeText
-        ? "HOST'S PICKS"
+        ? ""
         : definition.type === roundTypes.myDefinition
           ? `${definition.word}: ${revealedAnswer ?? ""}`
-          : `CORRECT ANSWER: ${revealedAnswer ?? ""}`;
+          : revealedAnswer ?? "";
+    const visibleSubmissions = submissions.slice(0, round?.revealCount ?? 0);
+    const showPoints = Boolean(round?.revealPoints);
     revealAnswers.replaceChildren(
-      ...submissions.map((submission) => {
+      ...visibleSubmissions.map((submission) => {
         const item = document.createElement("li");
         item.className = submission.status;
         if (definition.type === roundTypes.closestWins) {
           item.className = "closest-result";
           item.innerHTML = `<strong>${submission.placing}</strong><strong>${escapeHtml(
             submission.playerName,
-          )}</strong><span>${escapeHtml(submission.answer)}</span><strong>+${
-            submission.points ?? 0
+          )}</strong><span>${escapeHtml(submission.answer)}</span><strong>${
+            showPoints ? `+${submission.points ?? 0}` : ""
           }</strong>`;
         } else if (definition.type === roundTypes.bestFreeText) {
           item.innerHTML = `<strong>${escapeHtml(
             submission.playerName,
-          )}</strong><span>${escapeHtml(submission.answer)}</span><span>+${
-            submission.points ?? 0
+          )}</strong><span>${escapeHtml(submission.answer)}</span><span>${
+            showPoints ? `+${submission.points ?? 0}` : ""
           }</span>`;
         } else if (definition.type === roundTypes.myDefinition) {
           const points =
@@ -221,13 +230,15 @@ function renderGame(snapshot) {
             submission.playerName,
           )}</strong><span>${escapeHtml(
             submission.answer,
-          )}</span><span>+${points}</span>`;
+          )}</span><span>${showPoints ? `+${points}` : ""}</span>`;
         } else {
           item.innerHTML = `<strong>${escapeHtml(
             submission.playerName,
           )}</strong><span>${escapeHtml(submission.answer)}</span><span>${
-            submission.status === "correct" ? "Correct" : "Incorrect"
-          } · ${submission.points ?? 0} pts</span>`;
+            showPoints
+              ? `${submission.status === "correct" ? "Correct" : "Incorrect"} · ${submission.points ?? 0} pts`
+              : ""
+          }</span>`;
         }
         return item;
       }),
@@ -255,6 +266,11 @@ function renderGame(snapshot) {
       leaderboardScreen,
       `leaderboard:${snapshot.round?.startedAt}`,
     );
+    return;
+  }
+
+  if (state.phase === phases.intermission && nextDefinition) {
+    renderArtwork(nextDefinition, displayModes.artwork);
     return;
   }
 

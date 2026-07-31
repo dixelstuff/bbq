@@ -839,6 +839,17 @@ dialog::backdrop {
   flex: 1 1 14rem;
 }
 
+.reveal-controls {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 0.75rem;
+}
+
+.reveal-controls button {
+  min-height: 4.5rem;
+  font-size: 1rem;
+}
+
 .marking-status {
   align-self: center;
   font-size: 0.82rem;

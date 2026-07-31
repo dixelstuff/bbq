@@ -11,6 +11,7 @@ audio.preload = "metadata";
 let activeRoundId;
 let activeConfig;
 let handledSequence = 0;
+let activeRoundKey;
 let stopAt;
 let stopTimer;
 let pendingCommand;
@@ -48,9 +49,11 @@ export function syncDisplayAudio(snapshot) {
     return;
   }
 
-  if (activeRoundId !== definition.id) {
+  const roundKey = `${definition.id}:${round?.startedAt ?? "unknown"}`;
+  if (activeRoundKey !== roundKey) {
     resetAudio();
     activeRoundId = definition.id;
+    activeRoundKey = roundKey;
     activeConfig = normalizeTimedMediaCue(definition.audio);
     audio.src = `/${activeConfig.file}`;
     report("loading", `Checking ${activeConfig.file}…`);
@@ -58,8 +61,16 @@ export function syncDisplayAudio(snapshot) {
   }
 
   const command = round?.audioCommand;
-  if (!command || command.sequence <= handledSequence) return;
+  const commandKey = command
+    ? `${roundKey}:${command.sequence}:${command.requestedAt ?? ""}`
+    : null;
+  if (
+    !command ||
+    command.sequence <= handledSequence ||
+    sessionStorage.getItem("bbq.displayAudioCommand") === commandKey
+  ) return;
   handledSequence = command.sequence;
+  sessionStorage.setItem("bbq.displayAudioCommand", commandKey);
   pendingCommand = command;
   runCommand(command).catch((error) => {
     console.error("[BBQ display] Audio command failed.", error);
@@ -145,6 +156,7 @@ function resetAudio() {
   audio.load();
   clearScheduledStop();
   activeRoundId = undefined;
+  activeRoundKey = undefined;
   activeConfig = undefined;
   handledSequence = 0;
   pendingCommand = undefined;

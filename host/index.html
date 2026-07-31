@@ -37,10 +37,6 @@
       <section class="stack" aria-labelledby="players-heading">
         <h2 id="players-heading">Players</h2>
         <p id="joined-count">0 players joined</p>
-        <section id="disconnected-warning" class="disconnected-warning" hidden>
-          <h3>DISCONNECTED</h3>
-          <ul id="disconnected-players"></ul>
-        </section>
       </section>
 
       <section id="round-selection" class="stack">
@@ -49,28 +45,19 @@
       </section>
 
       <section id="grouping-panel" class="grouping-panel stack">
-        <h2>Groups</h2>
+        <h2>Teams</h2>
         <div class="grouping-actions">
-          <button id="generate-individuals" class="secondary" type="button">
-            INDIVIDUALS
-          </button>
-          <button id="generate-pairs" class="secondary" type="button">
-            PAIRS
-          </button>
-          <button id="generate-threes" class="secondary" type="button">
-            GROUPS OF THREE
-          </button>
           <button id="generate-teams" class="secondary" type="button">
-            TWO TEAMS
+            CREATE / SHUFFLE TWO TEAMS
           </button>
           <button id="show-groups" class="secondary" type="button">
             SHOW GROUPS ON DISPLAY
           </button>
           <button id="previous-group" class="secondary" type="button">
-            PREVIOUS GROUP
+            PREVIOUS TEAM
           </button>
           <button id="next-group" class="secondary" type="button">
-            NEXT GROUP
+            NEXT TEAM
           </button>
         </div>
         <div id="host-groups" class="host-groups"></div>
@@ -100,6 +87,10 @@
       </details>
 
       <section id="host-game" class="host-game stack" hidden>
+        <section id="disconnected-warning" class="disconnected-warning" hidden>
+          <h3>CHECK PHONES — DISCONNECTED</h3>
+          <ul id="disconnected-players"></ul>
+        </section>
         <h2 id="host-question"></h2>
         <p id="correct-answer-row"><strong>Correct answer:</strong> <span id="correct-answer"></span></p>
         <div id="notes" class="host-notes"></div>
@@ -163,13 +154,13 @@
           <button id="charades-skip" class="secondary" type="button">SKIP</button>
         </div>
         <div class="charades-navigation">
-          <button id="charades-previous-group" class="secondary" type="button">PREVIOUS GROUP</button>
-          <button id="charades-next-group" class="secondary" type="button">NEXT GROUP</button>
+          <button id="charades-previous-group" class="secondary" type="button">PREVIOUS TEAM</button>
+          <button id="charades-next-group" class="secondary" type="button">NEXT TEAM</button>
           <button id="charades-previous-prompt" class="secondary" type="button">PREVIOUS PROMPT</button>
           <button id="charades-next-prompt" class="secondary" type="button">NEXT PROMPT</button>
         </div>
         <div class="charades-timer-controls">
-          <label>Seconds <input id="charades-seconds" type="number" min="1" max="600" value="60" /></label>
+          <label>Seconds <input id="charades-seconds" type="number" min="1" max="600" value="75" /></label>
           <button id="charades-start-timer" type="button">START TIMER</button>
           <button id="charades-stop-timer" class="secondary" type="button">STOP TIMER</button>
           <button id="charades-overlay" class="secondary" type="button">SHOW ACTIVE OVERLAY</button>
@@ -200,6 +191,11 @@
             MARK ALL REMAINING INCORRECT
           </button>
         </div>
+      </section>
+
+      <section id="reveal-controls" class="reveal-controls" hidden>
+        <button id="reveal-next-answer" type="button">REVEAL NEXT ANSWER</button>
+        <button id="reveal-points" class="secondary" type="button">REVEAL POINTS</button>
       </section>
 
       <div class="actions">

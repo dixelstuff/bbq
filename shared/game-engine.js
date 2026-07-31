@@ -64,6 +64,7 @@ export async function observeGame(onChange) {
     onChange({
       state,
       definition: getRound(state.gameId, state.roundId),
+      nextDefinition: getRound(state.gameId, state.nextRoundId),
       round: session.round ?? {},
       submissions,
       players,
@@ -88,7 +89,7 @@ export async function beginRound(roundId = partyGame.rounds[0].id) {
 
     const players = currentPlayers(session, state);
     if (
-      [roundTypes.pairingPrototype, roundTypes.charades].includes(round.type) &&
+      round.type === roundTypes.pairingPrototype &&
       !Object.keys(session.grouping?.groups ?? {}).length
     ) {
       missingGroups = true;
@@ -110,6 +111,18 @@ export async function beginRound(roundId = partyGame.rounds[0].id) {
         createdAt: Date.now(),
       };
     } else if (round.type === roundTypes.charades) {
+      if (
+        grouping?.mode !== groupingModes.twoTeams ||
+        Object.keys(grouping?.groups ?? {}).length !== 2
+      ) {
+        const groups = createGroups(players, groupingModes.twoTeams);
+        grouping = {
+          mode: groupingModes.twoTeams,
+          groups: Object.fromEntries(groups.map((group) => [group.id, group])),
+          activeGroupId: groups[0]?.id ?? null,
+          createdAt: Date.now(),
+        };
+      }
       grouping = {
         ...grouping,
         participation: participationModes.turnBased,
@@ -319,7 +332,10 @@ export async function moveCharadesPrompt(direction) {
       ...session,
       round: {
         ...session.round,
-        promptIndex: Math.max(0, (session.round?.promptIndex ?? 0) + change),
+        promptIndex: Math.max(
+          0,
+          Math.min(4, (session.round?.promptIndex ?? 0) + change),
+        ),
       },
     };
   });
@@ -337,11 +353,12 @@ export async function recordCharadesAttempt(outcome) {
     ) {
       return;
     }
+    if ((session.round?.attemptNumber ?? 1) > 5) return;
     return {
       ...session,
       round: {
         ...session.round,
-        promptIndex: (session.round?.promptIndex ?? 0) + 1,
+        promptIndex: Math.min(4, (session.round?.promptIndex ?? 0) + 1),
         attemptNumber: (session.round?.attemptNumber ?? 1) + 1,
         correctGuesses:
           (session.round?.correctGuesses ?? 0) +
@@ -349,6 +366,28 @@ export async function recordCharadesAttempt(outcome) {
         skippedPrompts:
           (session.round?.skippedPrompts ?? 0) +
           (outcome === "skipped" ? 1 : 0),
+      },
+    };
+  });
+}
+
+export async function activateCharadesTeam(groupId) {
+  return transactSession((session, state) => {
+    const definition = getRound(state.gameId, state.roundId);
+    if (
+      definition?.type !== roundTypes.charades ||
+      !session.grouping?.groups?.[groupId]
+    ) return;
+    return {
+      ...session,
+      grouping: { ...session.grouping, activeGroupId: groupId },
+      round: {
+        ...session.round,
+        promptIndex: 0,
+        attemptNumber: 1,
+        correctGuesses: 0,
+        skippedPrompts: 0,
+        timer: null,
       },
     };
   });
@@ -530,6 +569,12 @@ export async function skipRound() {
     }
     return completeRound(session, state, { skipped: true });
   });
+}
+
+export async function skipToNextRound() {
+  const skipped = await skipRound();
+  const nextRoundId = skipped.snapshot.val()?.state?.nextRoundId;
+  return nextRoundId ? beginRound(nextRoundId) : skipped;
 }
 
 function completeRound(session, state, { skipped = false } = {}) {
@@ -832,6 +877,8 @@ export async function closeDefinitionVoting() {
       round: {
         ...session.round,
         definitionScores: awards,
+        revealCount: 0,
+        revealPoints: false,
         result: {
           word: definition.word,
           definition: realOption?.text ?? "",
@@ -888,6 +935,8 @@ export async function scoreAndReveal() {
       round: {
         ...session.round,
         submissions,
+        revealCount: 0,
+        revealPoints: false,
       },
       state: {
         ...state,
@@ -902,6 +951,34 @@ export async function scoreAndReveal() {
   }
 
   return result;
+}
+
+export async function revealNextAnswer() {
+  return transactSession((session, state) => {
+    if (state.phase !== phases.reveal || !session.round) return;
+    const total = Object.keys(session.round.submissions ?? {}).length;
+    return {
+      ...session,
+      round: {
+        ...session.round,
+        revealCount: Math.min(total, (session.round.revealCount ?? 0) + 1),
+      },
+    };
+  });
+}
+
+export async function revealRoundPoints() {
+  return transactSession((session, state) => {
+    if (state.phase !== phases.reveal || !session.round) return;
+    return {
+      ...session,
+      round: {
+        ...session.round,
+        revealCount: Object.keys(session.round.submissions ?? {}).length,
+        revealPoints: true,
+      },
+    };
+  });
 }
 
 async function setPhase(expectedPhase, nextPhase) {

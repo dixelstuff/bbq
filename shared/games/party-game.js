@@ -1,5 +1,5 @@
 import { spellingBeeRound } from "../rounds/spelling-bee/round.js";
-import { charadesRound } from "../rounds/charades/round.js";
+import { charadesRounds } from "../rounds/charades/round.js";
 import {
   bestFreeTextRounds,
   closestWinsRounds,
@@ -18,7 +18,7 @@ export const partyGame = {
     ...definitionRounds,
     spellingBeeRound,
     ...closestWinsRounds,
-    charadesRound,
+    ...charadesRounds,
   ],
 };
 

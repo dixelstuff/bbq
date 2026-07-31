@@ -1,6 +1,8 @@
 // A small production surface for bespoke rounds. Effects stay restrained here
 // so rounds request a cue instead of implementing their own animation/audio.
-let lastCueKey;
+import { createCueGate } from "../shared/cue-gate.js";
+
+const acceptCue = createCueGate();
 let audioContext;
 
 for (const eventName of ["pointerdown", "keydown"]) {
@@ -40,9 +42,7 @@ function cue(element, className, key) {
 }
 
 function newCue(key) {
-  if (!key || key === lastCueKey) return false;
-  lastCueKey = key;
-  return true;
+  return acceptCue(key);
 }
 
 function tone(notes, noteLength, type) {

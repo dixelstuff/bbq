@@ -2,6 +2,7 @@ import "../shared/development.js";
 import "../shared/styles.css";
 import {
   beginRound,
+  activateCharadesTeam,
   controlRoundAudio,
   advanceSpelling,
   closeAnswers,
@@ -18,13 +19,15 @@ import {
   observeGame,
   overrideSubmissionPoints,
   phases,
+  revealNextAnswer,
+  revealRoundPoints,
   scoreAndReveal,
   showLeaderboard,
   startRoundTimer,
   stopRoundTimer,
   setRoundDisplayOverlay,
   setSubmissionBonus,
-  skipRound,
+  skipToNextRound,
 } from "../shared/game-engine.js";
 import {
   getRounds,
@@ -50,7 +53,7 @@ import {
   resetGame,
 } from "../shared/session-state.js";
 import { spellingBeeWords } from "./rounds/spelling-bee/content.js";
-import { charadesPrompts } from "./rounds/charades/content.js";
+import { charadesPromptSets } from "./rounds/charades/content.js";
 import {
   definitionContent,
   getHostContent,
@@ -68,6 +71,9 @@ const resetCancelButton = document.querySelector("#reset-cancel");
 const actionStatus = document.querySelector("#action-status");
 const leaderboardToggle = document.querySelector("#leaderboard-toggle");
 const skipButton = document.querySelector("#skip-round");
+const revealControls = document.querySelector("#reveal-controls");
+const revealNextButton = document.querySelector("#reveal-next-answer");
+const revealPointsButton = document.querySelector("#reveal-points");
 const phaseLabel = document.querySelector("#phase");
 const cueHeading = document.querySelector("#cue");
 const gamePanel = document.querySelector("#host-game");
@@ -126,6 +132,8 @@ const audioButtons = {
 let gameSnapshot;
 let latestPlayers = [];
 let latestGrouping = { groups: [] };
+let renderedHostRoundId;
+let renderedSubmissionSignature;
 
 if (document.documentElement.dataset.hostAccess !== "granted") {
   await new Promise((resolve) =>
@@ -193,6 +201,13 @@ nextButton.addEventListener("click", async () => {
     gameSnapshot?.definition?.type === roundTypes.charades;
   const definitionRound =
     gameSnapshot?.definition?.type === roundTypes.myDefinition;
+  const revealCount = gameSnapshot?.round?.revealCount ?? 0;
+  const revealTotal = gameSnapshot?.submissions?.length ?? 0;
+  const revealAction = revealCount < revealTotal
+    ? revealNextAnswer
+    : !gameSnapshot?.round?.revealPoints && revealTotal > 0
+      ? revealRoundPoints
+      : finishRound;
   const action = {
     [phases.lobby]: () => beginRound(roundSelect.value),
     [phases.opening]: openRoundQuestion,
@@ -208,7 +223,7 @@ nextButton.addEventListener("click", async () => {
           )
       : scoreAndReveal,
     [phases.voting]: closeDefinitionVoting,
-    [phases.reveal]: spellingRound ? advanceSpelling : finishRound,
+    [phases.reveal]: spellingRound ? advanceSpelling : revealAction,
     [phases.leaderboard]: hideLeaderboard,
     [phases.intermission]: () => beginRound(roundSelect.value),
   }[phase];
@@ -227,7 +242,15 @@ leaderboardToggle.addEventListener("click", () =>
   ),
 );
 
-skipButton.addEventListener("click", () => runAction(skipButton, skipRound));
+skipButton.addEventListener("click", () =>
+  runAction(skipButton, skipToNextRound),
+);
+revealNextButton.addEventListener("click", () =>
+  runAction(revealNextButton, revealNextAnswer),
+);
+revealPointsButton.addEventListener("click", () =>
+  runAction(revealPointsButton, revealRoundPoints),
+);
 
 spellingPlayer.addEventListener("change", () =>
   runAction(spellingPlayer, () => setActiveGroup(spellingPlayer.value)),
@@ -239,24 +262,6 @@ spellingCorrect.addEventListener("click", () =>
 
 spellingIncorrect.addEventListener("click", () =>
   markCurrentSpelling(false, spellingIncorrect),
-);
-
-document.querySelector("#generate-individuals").addEventListener("click", (event) =>
-  runAction(event.currentTarget, () =>
-    generateGrouping(groupingModes.individual, participationModes.turnBased),
-  ),
-);
-
-document.querySelector("#generate-pairs").addEventListener("click", (event) =>
-  runAction(event.currentTarget, () =>
-    generateGrouping(groupingModes.pairs, participationModes.turnBased),
-  ),
-);
-
-document.querySelector("#generate-threes").addEventListener("click", (event) =>
-  runAction(event.currentTarget, () =>
-    generateGrouping(groupingModes.threes, participationModes.turnBased),
-  ),
 );
 
 document.querySelector("#charades-previous-group").addEventListener("click", () =>
@@ -294,7 +299,7 @@ charadesScoreButtons.addEventListener("click", (event) => {
 });
 document.querySelector("#generate-teams").addEventListener("click", (event) =>
   runAction(event.currentTarget, () =>
-    generateGrouping(groupingModes.twoTeams, participationModes.simultaneous),
+    generateGrouping(groupingModes.twoTeams, participationModes.turnBased),
   ),
 );
 
@@ -415,7 +420,7 @@ function renderPlayers(players) {
       return item;
     }),
   );
-  disconnectedWarning.hidden = disconnected.length === 0;
+  updateDisconnectedWarning();
   renderSimulatorPlayers();
   renderGrouping();
 }
@@ -425,6 +430,7 @@ function renderGame(snapshot) {
   const isSpelling = definition?.type === roundTypes.spellingBee;
   const isCharades = definition?.type === roundTypes.charades;
   const isPairing = definition?.type === roundTypes.pairingPrototype;
+  updateDisconnectedWarning(definition, state.phase);
   phaseLabel.textContent = phaseTitle(state.phase, definition);
   cueHeading.textContent =
     state.phase === phases.lobby ? "Welcome" : definition?.typeLabel ?? partyGame.title;
@@ -450,13 +456,19 @@ function renderGame(snapshot) {
   emptySubmissions.hidden = !answerRound || submissions.length > 0;
 
   if (definition) {
-    const hostContent = getHostContent(definition.id);
-    questionText.textContent = definition.question ?? definition.title;
-    correctAnswerRow.hidden = !(hostContent?.answer ?? definition.answer);
-    correctAnswer.textContent = hostContent?.answer ?? definition.answer ?? "";
-    notes.replaceChildren(...hostNoteBlocks(hostContent, definition.notes));
-    roundType.textContent = definition.typeLabel;
+    if (renderedHostRoundId !== definition.id) {
+      const hostContent = getHostContent(definition.id);
+      questionText.textContent = definition.question ?? definition.title;
+      correctAnswerRow.hidden = !(hostContent?.answer ?? definition.answer);
+      correctAnswer.textContent = hostContent?.answer ?? definition.answer ?? "";
+      notes.replaceChildren(...hostNoteBlocks(hostContent, definition.notes));
+      roundType.textContent = definition.typeLabel;
+      renderedHostRoundId = definition.id;
+    }
     renderSubmissions(submissions, state.phase);
+  } else {
+    renderedHostRoundId = undefined;
+    renderedSubmissionSignature = undefined;
   }
   if (state.phase === phases.intermission && state.nextRoundId) {
     roundSelect.value = state.nextRoundId;
@@ -494,7 +506,13 @@ function renderGame(snapshot) {
         ? "OPEN VOTING"
         : "REVEAL RESULTS",
     [phases.voting]: "CLOSE VOTING & REVEAL",
-    [phases.reveal]: isSpelling ? "NEXT PLAYER" : "NEXT QUESTION",
+    [phases.reveal]: isSpelling
+      ? "NEXT PLAYER"
+      : (round?.revealCount ?? 0) < submissions.length
+        ? "REVEAL NEXT ANSWER"
+        : !round?.revealPoints && submissions.length > 0
+          ? "REVEAL POINTS"
+          : "NEXT QUESTION",
     [phases.leaderboard]: "RETURN TO ROUND",
     [phases.intermission]: "START SELECTED ROUND",
   };
@@ -511,6 +529,28 @@ function renderGame(snapshot) {
     phases.marking,
     phases.voting,
   ].includes(state.phase);
+  const stagedReveal =
+    state.phase === phases.reveal &&
+    !isSpelling &&
+    submissions.length > 0;
+  revealControls.hidden = !stagedReveal;
+  revealNextButton.disabled =
+    !stagedReveal || (round?.revealCount ?? 0) >= submissions.length;
+  revealPointsButton.disabled = !stagedReveal || Boolean(round?.revealPoints);
+}
+
+function updateDisconnectedWarning(
+  definition = gameSnapshot?.definition,
+  phase = gameSnapshot?.state?.phase,
+) {
+  const phoneCritical = Boolean(definition?.submission) ||
+    definition?.type === roundTypes.myDefinition;
+  const approachingPhoneRound = [phases.opening, phases.question, phases.voting]
+    .includes(phase);
+  const hasDisconnected = latestPlayers.some((player) => !player.connected);
+  disconnectedWarning.hidden = !(
+    phoneCritical && approachingPhoneRound && hasDisconnected
+  );
 }
 
 function renderAudioControls(definition, round, phase) {
@@ -551,15 +591,22 @@ function renderCharadesHost(state, round) {
     active?.members?.map((member) => member.name).join(" · ") ??
     "No group selected";
   const prompt =
-    charadesPrompts[(round?.promptIndex ?? 0) % charadesPrompts.length];
+    charadesPromptSets[gameSnapshot?.definition?.promptSetIndex ?? 0]?.[
+      Math.max(0, latestGrouping.groups.findIndex(
+        (group) => group.id === latestGrouping.activeGroupId,
+      )) * 5 + Math.min(4, round?.promptIndex ?? 0)
+    ];
   charadesPrompt.textContent = prompt?.prompt ?? "No prompt configured";
   charadesCategory.textContent = prompt?.category ?? "";
-  charadesAttempt.textContent = String(round?.attemptNumber ?? 1);
+  charadesAttempt.textContent = `${Math.min(5, round?.attemptNumber ?? 1)} / 5`;
   charadesCorrectCount.textContent = String(round?.correctGuesses ?? 0);
   charadesSkippedCount.textContent = String(round?.skippedPrompts ?? 0);
   charadesTime.textContent = String(
     remainingTimerSeconds(round?.timer) ?? Number(charadesSeconds.value),
   );
+  const finishedSet = (round?.attemptNumber ?? 1) > 5;
+  charadesCorrectButton.disabled = finishedSet;
+  charadesSkipButton.disabled = finishedSet;
   charadesOverlay.textContent =
     round?.displayMode === "overlay"
       ? "HIDE ACTIVE OVERLAY"
@@ -677,7 +724,10 @@ function cycleActiveGroup(direction) {
     direction,
   );
   if (!nextId) return;
-  setActiveGroup(nextId).catch((error) => {
+  const changeActive = gameSnapshot?.definition?.type === roundTypes.charades
+    ? activateCharadesTeam
+    : setActiveGroup;
+  changeActive(nextId).catch((error) => {
     console.error("[BBQ host] Unable to change the active group.", error);
   });
 }
@@ -762,6 +812,20 @@ function renderSimulatorPlayers() {
 
 function renderSubmissions(submissions, phase) {
   const definition = gameSnapshot?.definition;
+  const signature = JSON.stringify({
+    phase,
+    roundId: definition?.id,
+    submissions: submissions.map((submission) => ({
+      playerId: submission.playerId,
+      answer: submission.answer,
+      status: submission.status,
+      points: submission.points,
+      bonus: submission.bonus,
+      placing: submission.placing,
+    })),
+  });
+  if (signature === renderedSubmissionSignature) return;
+  renderedSubmissionSignature = signature;
   submissionsList.replaceChildren(
     ...submissions.map((submission, index) => {
       const item = document.createElement("li");
@@ -772,8 +836,12 @@ function renderSubmissions(submissions, phase) {
       const prefix = submission.placing
         ? `${submission.placing}.`
         : `${index + 1}.`;
-      answer.innerHTML = `<strong>${prefix} ${escapeHtml(
-        submission.playerName,
+      const blindMarking = phase === phases.marking;
+      const answerLabel = blindMarking
+        ? `ANSWER ${index + 1}`
+        : `${prefix} ${submission.playerName}`;
+      answer.innerHTML = `<strong>${escapeHtml(
+        answerLabel,
       )}</strong><span>${escapeHtml(submission.answer)}</span>`;
       controls.className = "mark-actions";
 

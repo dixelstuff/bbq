@@ -242,16 +242,21 @@ test("the Spelling Bee round declares an individual, quiet Display flow", async 
   assert.equal(spellingBeeRound.media.title.visibility, "display");
 });
 
-test("Charades reuses any existing grouping and keeps its Display quiet", async () => {
-  const { charadesRound } = await import(
+test("Charades uses two teams, five-prompt turns and a quiet Display", async () => {
+  const { charadesRound, charadesRounds } = await import(
     "../shared/rounds/charades/round.js"
   );
-  assert.equal(charadesRound.grouping.mode, "existing");
+  assert.equal(charadesRound.grouping.mode, "two-teams");
   assert.equal(charadesRound.participation, "turn-based");
-  assert.equal(charadesRound.display.overlay, true);
+  assert.equal(charadesRound.display.overlay, false);
   assert.equal(charadesRound.display.phases.question, "artwork");
-  assert.equal(charadesRound.timer.defaultSeconds, 60);
+  assert.equal(charadesRound.timer.defaultSeconds, 75);
   assert.deepEqual(charadesRound.scoring, { minimum: 0, maximum: 5 });
+  assert.equal(charadesRounds.length, 8);
+  assert.deepEqual(
+    charadesRounds.map((round) => round.promptSetIndex),
+    [0, 1, 2, 3, 4, 5, 6, 7],
+  );
 });
 
 test("Charades-style awards credit individuals, pairs, Pair-ish groups and teams", () => {

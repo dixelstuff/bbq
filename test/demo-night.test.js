@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { charadesLibrary, charadesPrompts } from "../host/rounds/charades/content.js";
+import {
+  charadesLibrary,
+  charadesPrompts,
+  charadesPromptSets,
+} from "../host/rounds/charades/content.js";
 import { spellingBeeWords } from "../host/rounds/spelling-bee/content.js";
 import { getHostContent } from "../host/rounds/demo-night/content.js";
 import {
@@ -70,6 +74,8 @@ test("charades keeps all supplied prompts and adds exactly fifty", () => {
     assert.ok(charadesPrompts.some((entry) => entry.prompt === prompt));
   }
   assert.ok(Object.keys(charadesLibrary).length >= 5);
+  assert.equal(charadesPromptSets.length, 8);
+  assert.ok(charadesPromptSets.every((set) => set.length === 10));
 });
 
 test("MCQ scoring accepts alternatives and remains case-insensitive", () => {

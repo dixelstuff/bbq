@@ -53,3 +53,8 @@ export const charadesLibrary = {
 export const charadesPrompts = Object.entries(charadesLibrary).flatMap(
   ([category, prompts]) => prompts.map((prompt) => ({ category, prompt })),
 );
+
+// Each selectable round contains five private prompts for each of two teams.
+export const charadesPromptSets = Array.from({ length: 8 }, (_, setIndex) =>
+  charadesPrompts.slice(setIndex * 10, setIndex * 10 + 10),
+);
