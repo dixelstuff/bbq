@@ -1,6 +1,8 @@
 import "../shared/development.js";
 import "../shared/styles.css";
 import { restartDatabaseConnection } from "../shared/firebase.js";
+import { observeGame, phases, submitAnswer } from "../shared/game-engine.js";
+import { observeHostConnected } from "../shared/host-presence.js";
 import {
   getJoinedPlayer,
   maintainPlayerPresence,
@@ -38,6 +40,16 @@ const debugConnection = document.querySelector("#debug-connection");
 const debugName = document.querySelector("#debug-name");
 const debugScreen = document.querySelector("#debug-screen");
 const debugReconnect = document.querySelector("#debug-reconnect");
+const waitingView = document.querySelector("#waiting-view");
+const waitingName = document.querySelector("#waiting-name");
+const questionView = document.querySelector("#question-view");
+const questionImage = document.querySelector("#question-image");
+const questionText = document.querySelector("#question-text");
+const answerForm = document.querySelector("#answer-form");
+const answerInput = document.querySelector("#answer");
+const answerButton = document.querySelector("#answer-submit");
+const answerStatus = document.querySelector("#answer-status");
+const playerResult = document.querySelector("#player-result");
 
 let currentState = {
   step: loadNumber(playerStepKey, 1),
@@ -57,6 +69,12 @@ let stepRetryTimer;
 let stopStateObserver;
 let stateObserverGeneration = 0;
 let attemptNumber = 0;
+let playerId;
+let gameSnapshot;
+let stopGameObserver;
+let gameRetryTimer;
+let hostConnected = false;
+let hostStatusKnown = false;
 
 debugPanel.hidden = !import.meta.env.DEV;
 screen.textContent = `Waiting — screen ${currentState.step}`;
@@ -64,6 +82,8 @@ input.value = loadPlayerName();
 updatePlayerMode();
 updateDebugPanel();
 startStateObserver();
+startGameObserver();
+startHostObserver();
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -84,6 +104,31 @@ input.addEventListener("input", () => {
 
 refreshButton.addEventListener("click", () => {
   window.location.reload();
+});
+
+answerForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const answer = answerInput.value.trim();
+
+  if (!answer || currentState.phase !== phases.question) {
+    return;
+  }
+
+  answerInput.disabled = true;
+  answerButton.disabled = true;
+  answerStatus.dataset.error = "false";
+  answerStatus.textContent = "Submitting…";
+
+  try {
+    await submitAnswer(answer);
+    answerStatus.textContent = "Answer submitted";
+  } catch (error) {
+    console.error("[BBQ player] Unable to submit answer.", error);
+    answerInput.disabled = false;
+    answerButton.disabled = false;
+    answerStatus.dataset.error = "true";
+    answerStatus.textContent = "Couldn’t submit. Please try again.";
+  }
 });
 
 document.addEventListener("visibilitychange", () => {
@@ -159,6 +204,7 @@ async function submitName(rawName, quiet = false) {
     const player = await savePlayerNameToFirebase(name);
 
     joined = true;
+    playerId = player.id;
     currentState.generation = player.generation;
     activeGeneration = currentState.generation;
     savePlayerIdentity(player.name, player.generation);
@@ -231,6 +277,40 @@ function startStateObserver(force = false) {
     });
 }
 
+function startGameObserver(force = false) {
+  if (force) {
+    stopGameObserver?.();
+    stopGameObserver = undefined;
+  } else if (stopGameObserver) {
+    return;
+  }
+
+  clearTimeout(gameRetryTimer);
+  observeGame((snapshot) => {
+    gameSnapshot = snapshot;
+    renderPlayerGame();
+  })
+    .then((stopObserver) => {
+      stopGameObserver = stopObserver;
+    })
+    .catch((error) => {
+      console.error("[BBQ player] Unable to observe the game; retrying.", error);
+      gameRetryTimer = window.setTimeout(startGameObserver, retryDelay);
+    });
+}
+
+function startHostObserver() {
+  observeHostConnected((connected) => {
+    hostConnected = connected;
+    hostStatusKnown = true;
+    updatePlayerMode();
+  }).catch((error) => {
+    console.error("[BBQ player] Unable to observe Host presence.", error);
+    hostStatusKnown = true;
+    updatePlayerMode();
+  });
+}
+
 function handleSessionState(state) {
   const previousGeneration = currentState.generation;
   currentState = state;
@@ -263,6 +343,7 @@ function handleSessionState(state) {
 
   updatePlayerMode();
   updateDebugPanel();
+  renderPlayerGame();
 }
 
 async function restoreSavedMembership(generation) {
@@ -285,6 +366,7 @@ async function restoreSavedMembership(generation) {
     }
 
     joined = true;
+    playerId = player.id;
     activeGeneration = generation;
     savePlayerIdentity(player.name, generation);
     input.value = player.name;
@@ -299,6 +381,7 @@ async function restoreSavedMembership(generation) {
 function resetPlayerForNewGame() {
   membershipCheckGeneration += 1;
   joined = false;
+  playerId = undefined;
   activeGeneration = undefined;
   presence?.stop();
   presence = undefined;
@@ -317,6 +400,7 @@ function resetPlayerForNewGame() {
   debugReconnect.textContent = "Never";
   setConnectionState("Disconnected");
   updatePlayerMode();
+  renderPlayerGame();
 }
 
 function requestRecovery(reason, restartTransport = false) {
@@ -327,6 +411,7 @@ function requestRecovery(reason, restartTransport = false) {
   clearTimeout(lifecycleTimer);
   lifecycleTimer = window.setTimeout(() => {
     startStateObserver(true);
+    startGameObserver(true);
     restorePresence(true, reason, restartTransport);
   }, lifecycleDebounce);
 }
@@ -498,8 +583,9 @@ function updatePlayerMode() {
   const name = loadPlayerName();
 
   form.hidden = gameStarted;
-  hostOpenButton.hidden = gameStarted;
+  hostOpenButton.hidden = gameStarted || !hostStatusKnown || hostConnected;
   playerBadge.hidden = !gameStarted || !joined || !name;
+  screen.hidden = gameStarted;
 
   if (gameStarted) {
     updateBadge(name);
@@ -513,6 +599,55 @@ function updatePlayerMode() {
     joinButton.disabled = false;
     joinButton.textContent = joined ? "UPDATE NAME" : "JOIN";
   }
+}
+
+function renderPlayerGame() {
+  const phase = currentState.phase;
+  const submission = gameSnapshot?.submissions.find(
+    (item) => item.playerId === playerId,
+  );
+  const definition = gameSnapshot?.definition;
+
+  waitingView.hidden = true;
+  questionView.hidden = true;
+  playerResult.hidden = true;
+
+  if (!joined || currentState.step === 1) {
+    return;
+  }
+
+  waitingName.textContent = loadPlayerName();
+
+  if (phase === phases.question && definition) {
+    questionView.hidden = false;
+    questionImage.src = definition.image;
+    questionImage.alt = definition.imageAlt;
+    questionText.textContent = definition.question;
+
+    if (submission) {
+      answerInput.value = submission.answer;
+      answerInput.disabled = true;
+      answerButton.disabled = true;
+      answerStatus.dataset.error = "false";
+      answerStatus.textContent = "Answer submitted";
+    } else {
+      answerInput.value = "";
+      answerInput.disabled = false;
+      answerButton.disabled = false;
+      answerStatus.textContent = "";
+    }
+    return;
+  }
+
+  if (phase === phases.reveal && submission) {
+    playerResult.hidden = false;
+    playerResult.textContent =
+      submission.status === "correct"
+        ? "Your answer was correct."
+        : "Your answer was incorrect.";
+  }
+
+  waitingView.hidden = false;
 }
 
 function updateBadge(name = loadPlayerName()) {

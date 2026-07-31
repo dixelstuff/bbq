@@ -64,6 +64,23 @@ cannot change the accepted names.
 Host can advance or fully reset the game, and all three applications receive
 updates live.
 
+## Game engine
+
+Progression is phase-based rather than screen-number based:
+
+```text
+lobby → question → marking → reveal → leaderboard → intermission
+```
+
+Game definitions provide content such as the question, local image, answer, and
+Host notes. The shared engine owns submissions, timestamps, answer locking,
+manual marks, scoring, reveals, and leaderboard ordering.
+
+Game 1 is `Fastest Correct Answer`. The fastest correct submission receives two
+points, later correct submissions receive one, and incorrect submissions
+receive zero. Its placeholder koala image is bundled from `media/images/` to
+exercise the local-media pipeline.
+
 ## Public deployment
 
 Pushes to `main` deploy automatically to GitHub Pages:

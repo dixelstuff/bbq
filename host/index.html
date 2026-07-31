@@ -23,14 +23,35 @@
     <main>
       <section class="stack">
         <p class="eyebrow">Current cue</p>
-        <h1>Welcome</h1>
-        <p id="step" aria-live="polite">Step 1</p>
+        <h1 id="cue">Welcome</h1>
+        <p id="phase" aria-live="polite">Lobby</p>
       </section>
 
       <section class="stack" aria-labelledby="players-heading">
         <h2 id="players-heading">Players</h2>
         <p id="empty-state">Waiting for players...</p>
         <ol id="players" hidden></ol>
+      </section>
+
+      <section id="host-game" class="host-game stack" hidden>
+        <img id="host-game-image" class="game-image host-game-image" alt="" />
+        <h2 id="host-question"></h2>
+        <p><strong>Correct answer:</strong> <span id="correct-answer"></span></p>
+        <p id="notes" class="host-notes"></p>
+      </section>
+
+      <section class="stack">
+        <h2 id="submissions-heading" hidden>Submissions</h2>
+        <p id="empty-submissions" hidden>No answers submitted yet.</p>
+        <ol id="submissions" class="submissions" hidden></ol>
+        <div id="bulk-actions" class="bulk-actions" hidden>
+          <button id="mark-all-correct" class="secondary" type="button">
+            MARK ALL REMAINING CORRECT
+          </button>
+          <button id="mark-all-incorrect" class="secondary" type="button">
+            MARK ALL REMAINING INCORRECT
+          </button>
+        </div>
       </section>
 
       <div class="actions">

@@ -306,9 +306,150 @@ dialog::backdrop {
   color: #a3261e;
 }
 
+.player-waiting {
+  display: grid;
+  justify-items: center;
+  gap: 1.25rem;
+  text-align: center;
+}
+
+.player-waiting h1 {
+  font-size: clamp(2rem, 8vw, 4rem);
+}
+
+.bbq-wordmark {
+  display: grid;
+  width: 7rem;
+  height: 7rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #181816;
+  color: #fff;
+  font-size: 1.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  animation: bbq-pulse 2.2s ease-in-out infinite;
+}
+
+.waiting-name {
+  border: 1px solid #cfccc4;
+  border-radius: 999px;
+  padding: 0.45rem 0.85rem;
+  color: #6b6962;
+}
+
+.game-image {
+  display: block;
+  width: 100%;
+  max-height: 42vh;
+  border-radius: 1rem;
+  object-fit: contain;
+  background: #d9eee4;
+}
+
+.player-question h1 {
+  font-size: clamp(2rem, 7vw, 4rem);
+}
+
+.player-result {
+  border-radius: 1rem;
+  padding: 1.25rem;
+  background: #fff;
+  font-size: 1.2rem;
+  text-align: center;
+}
+
+.host-game-image {
+  max-height: 18rem;
+}
+
+.host-notes {
+  color: #6b6962;
+  line-height: 1.5;
+}
+
+.submissions {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.submission-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1rem;
+  align-items: center;
+  border: 1px solid #dedbd3;
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  background: #fff;
+}
+
+.submission-row > div:first-child {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.submission-row.correct {
+  border-color: #72aa80;
+}
+
+.submission-row.incorrect {
+  border-color: #cf8b84;
+}
+
+.mark-actions,
+.bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.small-button {
+  width: auto;
+  min-height: 2.5rem;
+  padding: 0 0.75rem;
+  font-size: 0.8rem;
+}
+
+.bulk-actions button {
+  flex: 1 1 14rem;
+}
+
+.marking-status {
+  align-self: center;
+  font-size: 0.82rem;
+}
+
+.marking-status.correct {
+  color: #287441;
+}
+
+.marking-status.incorrect {
+  color: #a3261e;
+}
+
+@keyframes bbq-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgb(24 24 22 / 12%);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 1.2rem rgb(24 24 22 / 0%);
+  }
+}
+
 @media (max-width: 760px) {
   .join-panel {
     grid-template-columns: 1fr;
     gap: 2rem;
+  }
+
+  .submission-row {
+    grid-template-columns: 1fr;
   }
 }

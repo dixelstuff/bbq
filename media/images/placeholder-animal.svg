@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-labelledby="title description">
+  <title id="title">Illustrated koala</title>
+  <desc id="description">A simple placeholder illustration of a koala sitting among eucalyptus leaves.</desc>
+  <rect width="1200" height="800" fill="#d9eee4"/>
+  <circle cx="600" cy="410" r="245" fill="#899b98"/>
+  <circle cx="390" cy="265" r="130" fill="#778a87"/>
+  <circle cx="810" cy="265" r="130" fill="#778a87"/>
+  <circle cx="390" cy="265" r="72" fill="#b9c8c4"/>
+  <circle cx="810" cy="265" r="72" fill="#b9c8c4"/>
+  <ellipse cx="600" cy="445" rx="155" ry="190" fill="#aebdba"/>
+  <circle cx="525" cy="385" r="24" fill="#13211e"/>
+  <circle cx="675" cy="385" r="24" fill="#13211e"/>
+  <ellipse cx="600" cy="470" rx="62" ry="82" fill="#263633"/>
+  <path d="M565 555 Q600 580 635 555" fill="none" stroke="#263633" stroke-width="14" stroke-linecap="round"/>
+  <g fill="#4d8b68">
+    <ellipse cx="170" cy="620" rx="42" ry="120" transform="rotate(-38 170 620)"/>
+    <ellipse cx="260" cy="690" rx="42" ry="120" transform="rotate(-58 260 690)"/>
+    <ellipse cx="1030" cy="620" rx="42" ry="120" transform="rotate(38 1030 620)"/>
+    <ellipse cx="940" cy="690" rx="42" ry="120" transform="rotate(58 940 690)"/>
+  </g>
+</svg>

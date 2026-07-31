@@ -7,6 +7,7 @@ const firstGeneration = 1;
 
 export function validSessionState(value) {
   return {
+    ...(value ?? {}),
     step:
       Number.isInteger(value?.step) && value.step >= firstStep
         ? value.step
@@ -76,9 +77,11 @@ export async function resetGame() {
     // Replacing the complete session deliberately clears players, connections,
     // answers, scores, rounds, and any future per-game state in one operation.
     return {
+      hostConnections: session?.hostConnections ?? null,
       state: {
         step: firstStep,
         generation: state.generation + 1,
+        phase: "lobby",
         resetAt: Date.now(),
       },
     };

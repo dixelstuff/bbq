@@ -13,9 +13,27 @@
         <ol id="player-names" class="player-names"></ol>
       </section>
 
-      <section id="game-screen" class="game-screen" hidden>
-        <h1 id="screen">SCREEN 2</h1>
-        <p id="game-player-count" class="game-player-count">0 players</p>
+      <section id="question-screen" class="display-game-screen" hidden>
+        <p class="corner-player-count">0 players</p>
+        <img id="display-question-image" class="display-game-image" alt="" />
+        <h1 id="display-question"></h1>
+      </section>
+
+      <section id="holding-screen" class="display-center-screen" hidden>
+        <p class="corner-player-count">0 players</p>
+        <h1 id="holding-text">ANSWERS LOCKED</h1>
+      </section>
+
+      <section id="reveal-screen" class="display-results-screen" hidden>
+        <p class="corner-player-count">0 players</p>
+        <h1 id="reveal-question"></h1>
+        <ol id="reveal-answers" class="reveal-answers"></ol>
+      </section>
+
+      <section id="leaderboard-screen" class="display-results-screen" hidden>
+        <p class="corner-player-count">0 players</p>
+        <h1>LEADERBOARD</h1>
+        <ol id="leaderboard" class="leaderboard"></ol>
       </section>
     </main>
     <script type="module" src="./main.js"></script>
