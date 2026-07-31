@@ -16,6 +16,7 @@ import {
   participationModes,
 } from "./grouping.js";
 import { displayModeForPhase, displayModes } from "./display-modes.js";
+import { createMediaCommand, mediaActions } from "./media-cues.js";
 
 const sessionPath = "sessions/default";
 const phases = {
@@ -158,6 +159,43 @@ export async function openRoundQuestion() {
           getRound(state.gameId, state.roundId),
           phases.question,
         ),
+      },
+    };
+  });
+}
+
+export async function controlRoundAudio(action) {
+  if (!mediaActions.includes(action)) {
+    throw new Error("Unknown audio action");
+  }
+  return transactSession((session, state) => {
+    const definition = getRound(state.gameId, state.roundId);
+    if (!definition?.audio || !session.round) {
+      return;
+    }
+    const previousSequence = session.round.audioCommand?.sequence ?? 0;
+    return {
+      ...session,
+      round: {
+        ...session.round,
+        audioCommand: createMediaCommand(action, previousSequence),
+      },
+    };
+  });
+}
+
+export async function reportRoundAudioStatus(roundId, status) {
+  return transactSession((session, state) => {
+    if (state.roundId !== roundId || !session.round) return;
+    return {
+      ...session,
+      round: {
+        ...session.round,
+        audioStatus: {
+          state: status.state,
+          message: String(status.message ?? ""),
+          updatedAt: Date.now(),
+        },
       },
     };
   });

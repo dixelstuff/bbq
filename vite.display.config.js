@@ -13,6 +13,7 @@ const releaseOrder = Number(
 
 export default defineConfig({
   root: resolve(import.meta.dirname, "display"),
+  publicDir: resolve(import.meta.dirname, "media/audio"),
   base: "/",
   define: {
     __BBQ_RELEASE_ID__: JSON.stringify(releaseId),

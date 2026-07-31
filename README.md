@@ -28,6 +28,19 @@ npm run display
 Display opens at `http://127.0.0.1:5173/`. It communicates with the public Host
 and Players only through Firebase; they do not depend on the Mac or its network.
 
+### Local audio
+
+Place Host-supplied recordings under `media/audio/`. The Display serves and
+plays them locally; Firebase synchronises only Host playback commands and
+readiness/error status. Audio is never uploaded to Firebase or sent to Player
+phones.
+
+Round definitions may specify a filename, start offset and excerpt duration.
+The Host can play, replay, extend by five seconds or stop a clip, while the
+Display always stops configured excerpts automatically. See
+[`media/audio/README.md`](media/audio/README.md) for the folder layout,
+supported formats and configuration examples.
+
 ## Firebase data
 
 The shared session keeps durable players separate from live connections:
@@ -97,7 +110,8 @@ members manually and can temporarily present all assignments on the Display.
 Every production build and local Display build carries its Git commit as a
 release identifier. The first updated Host or Display to connect resets the
 Firebase session once for that release, preventing an old in-progress round
-from surviving a code update.
+from surviving a code update. Release ordering prevents a Display still open
+on older code from rolling the session back.
 
 ## Public deployment
 

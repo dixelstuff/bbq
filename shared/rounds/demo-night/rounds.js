@@ -17,6 +17,7 @@ const answerRound = ({
   scoring,
   correctValue,
   prompt,
+  audio,
 }) => ({
   id,
   section,
@@ -29,6 +30,7 @@ const answerRound = ({
   choices,
   correctValue,
   prompt,
+  audio,
   submission: {
     kind: type === roundTypes.closestWins ? "number" : choices ? "choice" : "text",
     expectsEveryConnectedPlayer: true,
@@ -129,27 +131,47 @@ export const fastestFreeTextRounds = [
     id: "fastest-beethoven",
     question: "Which composer wrote this?",
     answer: "Beethoven",
-    prompt: "Audio placeholder — Symphony No. 5",
+    prompt: "Listen to the clip.",
+    audio: {
+      file: "composers/beethoven-symphony-5.mp3",
+      start: 0,
+      duration: 15,
+    },
   },
   {
     id: "fastest-strauss",
     question: "Which composer wrote this?",
     answer: "Richard Strauss",
-    prompt: "Audio placeholder — Also sprach Zarathustra",
+    prompt: "Listen to the clip.",
+    audio: {
+      file: "composers/strauss-also-sprach-zarathustra.mp3",
+      start: 0,
+      duration: 15,
+    },
   },
   {
     id: "fastest-vivaldi",
     question: "Which composer wrote this?",
     answer: "Antonio Vivaldi",
     acceptedAnswers: ["antonio vivaldi", "vivaldi"],
-    prompt: "Audio placeholder — Spring from The Four Seasons",
+    prompt: "Listen to the clip.",
+    audio: {
+      file: "composers/vivaldi-spring.mp3",
+      start: 0,
+      duration: 15,
+    },
   },
   {
     id: "fastest-holst",
     question: "Which composer wrote this?",
     answer: "Gustav Holst",
     acceptedAnswers: ["gustav holst", "holst"],
-    prompt: "Audio placeholder — Mars from The Planets",
+    prompt: "Listen to the clip.",
+    audio: {
+      file: "composers/holst-mars.mp3",
+      start: 0,
+      duration: 15,
+    },
   },
 ].map((round) =>
   answerRound({

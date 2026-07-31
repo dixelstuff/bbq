@@ -2,6 +2,7 @@ import "../shared/development.js";
 import "../shared/styles.css";
 import {
   beginRound,
+  controlRoundAudio,
   advanceSpelling,
   closeAnswers,
   closeDefinitionVoting,
@@ -109,6 +110,15 @@ const charadesTime = document.querySelector("#charades-time");
 const charadesCategory = document.querySelector("#charades-category");
 const charadesCorrectButton = document.querySelector("#charades-correct");
 const charadesSkipButton = document.querySelector("#charades-skip");
+const audioControls = document.querySelector("#audio-controls");
+const audioFile = document.querySelector("#audio-file");
+const audioStatus = document.querySelector("#audio-status");
+const audioButtons = {
+  play: document.querySelector("#audio-play"),
+  replay: document.querySelector("#audio-replay"),
+  extend: document.querySelector("#audio-extend"),
+  stop: document.querySelector("#audio-stop"),
+};
 
 let gameSnapshot;
 let latestPlayers = [];
@@ -163,6 +173,12 @@ setInterval(() => {
     renderCharadesHost(gameSnapshot.state, gameSnapshot.round);
   }
 }, 250);
+
+for (const [action, button] of Object.entries(audioButtons)) {
+  button.addEventListener("click", () =>
+    runAction(button, () => controlRoundAudio(action)),
+  );
+}
 
 nextButton.addEventListener("click", async () => {
   const phase = gameSnapshot?.state.phase;
@@ -407,6 +423,7 @@ function renderGame(snapshot) {
   gamePanel.hidden = !definition || isSpelling || isCharades;
   spellingHost.hidden = !isSpelling;
   charadesHost.hidden = !isCharades || state.phase !== phases.question;
+  renderAudioControls(definition, round, state.phase);
   bulkActions.hidden =
     state.phase !== phases.marking ||
     definition?.type !== roundTypes.fastestFreeText;
@@ -475,6 +492,38 @@ function renderGame(snapshot) {
 
   nextButton.textContent = nextLabels[state.phase] ?? "NEXT";
   nextButton.disabled = isSpelling && state.phase === phases.question;
+}
+
+function renderAudioControls(definition, round, phase) {
+  const configured = Boolean(definition?.audio);
+  audioControls.hidden = !configured;
+  if (!configured) return;
+
+  audioFile.textContent = `${definition.audio.file} · ${definition.audio.start}s–${
+    definition.audio.start + definition.audio.duration
+  }s`;
+  const status = round?.audioStatus;
+  const messages = {
+    loading: status?.message ?? "Checking local Display…",
+    ready: status?.message ?? "Clip ready on Display",
+    playing: status?.message ?? "Playing on Display",
+    stopped: status?.message ?? "Stopped",
+    missing: status?.message ?? "Audio file is missing on the Display Mac",
+    blocked: status?.message ?? "Display browser is waiting for sound permission",
+    error: status?.message ?? "Display audio failed",
+  };
+  audioStatus.textContent = status
+    ? messages[status.state] ?? status.message
+    : "Waiting for local Display…";
+  audioStatus.dataset.error = ["missing", "blocked", "error"].includes(
+    status?.state,
+  )
+    ? "true"
+    : "false";
+  const active = ![phases.lobby, phases.intermission].includes(phase);
+  Object.values(audioButtons).forEach((button) => {
+    button.disabled = !active;
+  });
 }
 
 function renderCharadesHost(state, round) {

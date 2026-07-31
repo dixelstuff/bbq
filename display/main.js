@@ -18,6 +18,7 @@ import {
   remainingTimerSeconds,
 } from "../shared/presentation.js";
 import { production } from "./production.js";
+import { setupDisplayAudio, syncDisplayAudio } from "./audio-playback.js";
 
 const joinUrl = "https://dixelstuff.github.io/bbq/";
 const waitingScreen = document.querySelector("#waiting-screen");
@@ -53,12 +54,14 @@ const spellingRevealStatus = document.querySelector("#spelling-reveal-status");
 const spellingRevealWord = document.querySelector("#spelling-reveal-word");
 const timerScreen = document.querySelector("#timer-screen");
 const timerValue = document.querySelector("#timer-value");
+const enableAudioButton = document.querySelector("#enable-audio");
 
 let players = [];
 let gameSnapshot;
 let groupingSnapshot = { groups: [] };
 
 await ensureSessionRelease(releaseId, releaseOrder);
+setupDisplayAudio(enableAudioButton);
 
 QRCode.toCanvas(qrCanvas, joinUrl, {
   width: 520,
@@ -88,6 +91,7 @@ observeGrouping((grouping) => {
 
 observeGame((snapshot) => {
   gameSnapshot = snapshot;
+  syncDisplayAudio(snapshot);
   renderGame(snapshot);
 }).catch((error) => {
   console.error("Unable to observe game", error);
