@@ -23,10 +23,16 @@ export async function observeStep(onChange) {
 export async function incrementStep() {
   await signIn();
 
-  await runTransaction(ref(database, stepPath), (step) => validStep(step) + 1);
+  const result = await runTransaction(
+    ref(database, stepPath),
+    (step) => validStep(step) + 1,
+  );
+
+  return validStep(result.snapshot.val());
 }
 
 export async function resetStep() {
   await signIn();
   await set(ref(database, stepPath), firstStep);
+  return firstStep;
 }

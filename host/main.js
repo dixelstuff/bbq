@@ -10,6 +10,7 @@ const emptyState = document.querySelector("#empty-state");
 const nextButton = document.querySelector("#next");
 const playerList = document.querySelector("#players");
 const resetButton = document.querySelector("#reset");
+const actionStatus = document.querySelector("#action-status");
 const stepLabel = document.querySelector("#step");
 
 observePlayers((players) => {
@@ -43,11 +44,16 @@ resetButton.addEventListener("click", async () => {
 
 async function runAction(button, action) {
   button.disabled = true;
+  actionStatus.dataset.error = "false";
+  actionStatus.textContent = "";
 
   try {
-    await action();
+    const step = await action();
+    stepLabel.textContent = `Step ${step}`;
   } catch (error) {
     console.error("Unable to update session step", error);
+    actionStatus.dataset.error = "true";
+    actionStatus.textContent = "Couldn’t update the step. Check the connection.";
   } finally {
     button.disabled = false;
   }

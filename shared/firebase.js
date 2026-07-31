@@ -1,5 +1,10 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, signInAnonymously } from "firebase/auth";
+import {
+  browserLocalPersistence,
+  getAuth,
+  setPersistence,
+  signInAnonymously,
+} from "firebase/auth";
 import { getDatabase } from "firebase/database";
 
 const firebaseConfig = {
@@ -18,11 +23,24 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const database = getDatabase(app);
 
-export async function signIn() {
+let signInPromise;
+
+export function signIn() {
   if (auth.currentUser) {
-    return auth.currentUser;
+    return Promise.resolve(auth.currentUser);
   }
 
-  const credential = await signInAnonymously(auth);
-  return credential.user;
+  // Every page starts several Firebase listeners at once. Share one sign-in
+  // attempt so they cannot race and create competing anonymous sessions.
+  if (!signInPromise) {
+    signInPromise = setPersistence(auth, browserLocalPersistence)
+      .then(() => signInAnonymously(auth))
+      .then((credential) => credential.user)
+      .catch((error) => {
+        signInPromise = undefined;
+        throw error;
+      });
+  }
+
+  return signInPromise;
 }

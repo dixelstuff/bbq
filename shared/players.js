@@ -8,19 +8,68 @@ import {
 import { database, signIn } from "./firebase.js";
 
 const playersPath = "sessions/default/players";
+const connectedPath = ".info/connected";
 
-export async function joinPlayer(name) {
+export async function maintainPlayerPresence(name) {
   const user = await signIn();
   const playerRef = ref(database, `${playersPath}/${user.uid}`);
+  let connected = false;
+  let stopped = false;
+  let writeQueue = Promise.resolve();
+  let resolveReady;
+  let rejectReady;
 
-  // Register cleanup first so even a connection lost during the write cannot
-  // leave a stale player behind.
-  await onDisconnect(playerRef).remove();
-
-  await set(playerRef, {
-    name,
-    joinedAt: serverTimestamp(),
+  const ready = new Promise((resolve, reject) => {
+    resolveReady = resolve;
+    rejectReady = reject;
   });
+
+  async function writePresence() {
+    if (stopped || !connected) {
+      return;
+    }
+
+    // Register cleanup before every write. Firebase clears onDisconnect
+    // handlers after a disconnect, so they must be restored on reconnection.
+    await onDisconnect(playerRef).remove();
+    await set(playerRef, {
+      name,
+      joinedAt: serverTimestamp(),
+    });
+
+    resolveReady();
+  }
+
+  function queuePresenceWrite() {
+    // A transient failed write must not poison future reconnect attempts.
+    writeQueue = writeQueue.catch(() => {}).then(writePresence);
+    writeQueue.catch(rejectReady);
+    return writeQueue;
+  }
+
+  const stopConnectionObserver = onValue(
+    ref(database, connectedPath),
+    (snapshot) => {
+      connected = snapshot.val() === true;
+
+      if (connected) {
+        queuePresenceWrite();
+      }
+    },
+    rejectReady,
+  );
+
+  await ready;
+
+  return {
+    refresh() {
+      return queuePresenceWrite();
+    },
+    stop() {
+      stopped = true;
+      stopConnectionObserver();
+    },
+  };
 }
 
 export async function observePlayers(onChange) {
