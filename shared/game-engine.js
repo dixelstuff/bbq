@@ -17,6 +17,10 @@ import {
 } from "./grouping.js";
 import { displayModeForPhase, displayModes } from "./display-modes.js";
 import { createMediaCommand, mediaActions } from "./media-cues.js";
+import {
+  createSimulatedDefinitionVotes,
+  shuffleDefinitionOptions,
+} from "./definition-voting.js";
 
 const sessionPath = "sessions/default";
 const phases = {
@@ -512,7 +516,23 @@ export async function finishRound() {
   });
 }
 
-function completeRound(session, state) {
+export async function skipRound() {
+  return transactSession((session, state) => {
+    if (
+      ![
+        phases.opening,
+        phases.question,
+        phases.marking,
+        phases.voting,
+      ].includes(state.phase)
+    ) {
+      return;
+    }
+    return completeRound(session, state, { skipped: true });
+  });
+}
+
+function completeRound(session, state, { skipped = false } = {}) {
   const historyId = `${session.round?.id ?? "round"}-${
     session.round?.startedAt ?? Date.now()
   }`;
@@ -530,6 +550,7 @@ function completeRound(session, state) {
       [historyId]: {
         ...session.round,
         finishedAt: Date.now(),
+        ...(skipped ? { skippedAt: Date.now() } : {}),
       },
     },
   };
@@ -715,24 +736,25 @@ export async function openDefinitionVoting(realDefinition) {
     ) {
       return;
     }
-    const options = [
+    const options = shuffleDefinitionOptions([
       { id: "real", text: definition, real: true },
       ...orderedSubmissions(session, state).map((submission) => ({
         id: `fake-${submission.playerId}`,
         text: submission.answer,
         authorId: submission.playerId,
       })),
-    ].sort((a, b) =>
-      stableOptionOrder(session.round?.startedAt, a.id).localeCompare(
-        stableOptionOrder(session.round?.startedAt, b.id),
-      ),
+    ], session.round?.startedAt);
+    const votes = createSimulatedDefinitionVotes(
+      currentPlayers(session, state),
+      options,
+      session.round?.startedAt,
     );
     return {
       ...session,
       round: {
         ...session.round,
         definitionOptions: options,
-        votes: {},
+        votes,
       },
       state: {
         ...state,
@@ -951,12 +973,4 @@ function currentPlayers(session, state) {
       ),
     }))
     .filter((player) => player.generation === state.generation);
-}
-
-function stableOptionOrder(seed, id) {
-  let hash = Number(seed ?? 0) || 1;
-  for (const character of id) {
-    hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
-  }
-  return hash.toString(16).padStart(8, "0");
 }

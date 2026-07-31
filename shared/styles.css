@@ -130,8 +130,39 @@ button:disabled {
 
 .actions {
   display: grid;
-  grid-template-columns: 1fr 2fr;
+  grid-template-columns: minmax(10rem, 1.35fr) minmax(8rem, 0.8fr) auto minmax(14rem, 2fr);
   gap: 0.75rem;
+  align-items: center;
+}
+
+.actions #leaderboard-toggle,
+.actions #next {
+  min-height: 4.75rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.actions #leaderboard-toggle {
+  border-color: #181816;
+}
+
+.actions #next {
+  box-shadow: 0 0.45rem 1.2rem rgb(24 24 22 / 18%);
+}
+
+.actions #reset-game {
+  min-height: 2.4rem;
+  padding: 0 0.65rem;
+  border-color: #c9aaa6;
+  background: transparent;
+  color: #8c514b;
+  font-size: 0.68rem;
+  opacity: 0.62;
+}
+
+.actions #reset-game:hover {
+  background: #f4e8e6;
+  opacity: 1;
 }
 
 button.secondary {
@@ -642,6 +673,16 @@ dialog::backdrop {
   border-radius: 50%;
 }
 
+.choice-options button.selected,
+.choice-options button.selected:disabled,
+.definition-options button.selected,
+.definition-options button.selected:disabled {
+  border-color: #287441;
+  background: #287441;
+  color: #fff;
+  opacity: 1;
+}
+
 .charades-stats,
 .charades-attempt-controls {
   display: grid;
@@ -794,6 +835,15 @@ dialog::backdrop {
 }
 
 @media (max-width: 760px) {
+  .actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .actions #next {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
   .join-panel {
     grid-template-columns: 1fr;
     gap: 2rem;

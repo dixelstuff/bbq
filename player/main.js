@@ -770,6 +770,7 @@ function renderPlayerGame() {
           65 + index,
         )}</strong><span>${escapeHtml(choice)}</span>`;
         button.disabled = Boolean(submission);
+        button.classList.toggle("selected", submission?.answer === choice);
         return button;
       }),
     );
@@ -801,6 +802,7 @@ function renderPlayerGame() {
           65 + index,
         )}</strong><span>${escapeHtml(option.text)}</span>`;
         button.disabled = Boolean(vote) || option.authorId === playerId;
+        button.classList.toggle("selected", vote === option.id);
         return button;
       }),
     );

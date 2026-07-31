@@ -13,7 +13,7 @@ export function normalizeTimedMediaCue(cue) {
   return {
     file,
     start: Math.max(0, Number(cue.start) || 0),
-    duration: Math.max(0.1, Number(cue.duration) || 15),
+    duration: Math.max(0.1, Number(cue.duration) || 20),
   };
 }
 
@@ -31,10 +31,10 @@ export function configuredStopTime(cue) {
   return normalized.start + normalized.duration;
 }
 
-export function extendedStopTime(currentTime, previousStopTime, seconds = 15) {
+export function extendedStopTime(currentTime, previousStopTime, seconds = 20) {
   const current = Math.max(0, Number(currentTime) || 0);
   const previous = Number(previousStopTime);
-  const extension = Math.max(0.1, Number(seconds) || 15);
+  const extension = Math.max(0.1, Number(seconds) || 20);
   return (Number.isFinite(previous) ? Math.max(previous, current) : current) +
     extension;
 }

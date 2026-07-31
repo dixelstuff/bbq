@@ -24,6 +24,7 @@ import {
   stopRoundTimer,
   setRoundDisplayOverlay,
   setSubmissionBonus,
+  skipRound,
 } from "../shared/game-engine.js";
 import {
   getRounds,
@@ -66,6 +67,7 @@ const resetConfirmButton = document.querySelector("#reset-confirm");
 const resetCancelButton = document.querySelector("#reset-cancel");
 const actionStatus = document.querySelector("#action-status");
 const leaderboardToggle = document.querySelector("#leaderboard-toggle");
+const skipButton = document.querySelector("#skip-round");
 const phaseLabel = document.querySelector("#phase");
 const cueHeading = document.querySelector("#cue");
 const gamePanel = document.querySelector("#host-game");
@@ -91,6 +93,7 @@ const spellingWord = document.querySelector("#spelling-word");
 const spellingPronunciation = document.querySelector("#spelling-pronunciation");
 const spellingDefinition = document.querySelector("#spelling-definition");
 const spellingExample = document.querySelector("#spelling-example");
+const spellingOrigin = document.querySelector("#spelling-origin");
 const spellingNotes = document.querySelector("#spelling-notes");
 const spellingMarking = document.querySelector("#spelling-marking");
 const spellingCorrect = document.querySelector("#spelling-correct");
@@ -223,6 +226,8 @@ leaderboardToggle.addEventListener("click", () =>
       : showLeaderboard,
   ),
 );
+
+skipButton.addEventListener("click", () => runAction(skipButton, skipRound));
 
 spellingPlayer.addEventListener("change", () =>
   runAction(spellingPlayer, () => setActiveGroup(spellingPlayer.value)),
@@ -500,6 +505,12 @@ function renderGame(snapshot) {
     state.phase === phases.leaderboard
       ? "RETURN TO ROUND"
       : "SHOW LEADERBOARD";
+  skipButton.hidden = ![
+    phases.opening,
+    phases.question,
+    phases.marking,
+    phases.voting,
+  ].includes(state.phase);
 }
 
 function renderAudioControls(definition, round, phase) {
@@ -582,6 +593,7 @@ function renderSpellingHost(state, round) {
   spellingPronunciation.textContent = item?.pronunciation ?? "";
   spellingDefinition.textContent = item?.definition ?? "";
   spellingExample.textContent = item?.example ?? "";
+  spellingOrigin.textContent = item?.origin ?? "";
   spellingNotes.textContent = item?.notes ?? "";
   spellingMarking.hidden = state.phase !== phases.question;
 }
@@ -720,6 +732,7 @@ function simulatorPlayers() {
       answer: gameSnapshot?.submissions.find(
         (submission) => submission.playerId === player.id,
       )?.answer,
+      vote: gameSnapshot?.round?.votes?.[player.id],
     }));
 }
 
@@ -732,6 +745,7 @@ function renderSimulatorPlayers() {
         (item) => item.playerId === player.id,
       );
       row.className = "simulated-player";
+      const activity = submission?.answer ?? (player.vote ? "Vote locked" : "No answer");
       row.innerHTML = `<input type="checkbox" data-sim-player="${escapeHtml(
         player.id,
       )}" ${player.connected ? "checked" : ""}><strong>${escapeHtml(
@@ -739,7 +753,7 @@ function renderSimulatorPlayers() {
       )}</strong><span>${escapeHtml(
         gameSnapshot?.state.phase ?? "lobby",
       )}</span><span>${escapeHtml(
-        submission?.answer ?? "No answer",
+        activity,
       )}</span><span>${player.score ?? 0} pts</span>`;
       return row;
     }),

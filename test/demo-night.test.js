@@ -86,6 +86,20 @@ test("MCQ scoring accepts alternatives and remains case-insensitive", () => {
   );
 });
 
+test("every BBQ-MCQ question is a phone-ready multiple choice", () => {
+  for (const round of mcqRounds) {
+    assert.equal(round.choices.length, 4, round.question);
+    assert.ok(round.choices.includes(round.answer), round.question);
+  }
+});
+
+test("spelling bee Host cards include an origin and a playful sentence", () => {
+  for (const item of spellingBeeWords) {
+    assert.ok(item.origin.length > 10, item.word);
+    assert.ok(item.example.length > 20, item.word);
+  }
+});
+
 test("My Definition awards two for finding truth and one per fooled rival", () => {
   assert.deepEqual(
     scoreDefinitionVotes(

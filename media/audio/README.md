@@ -59,7 +59,7 @@ Add an `audio` object to a round definition:
 audio: {
   file: "composers/your-recording.mp3",
   start: 0,
-  duration: 15,
+  duration: 20,
 }
 ```
 
@@ -69,7 +69,7 @@ audio: {
 - Decimal values are supported, for example `start: 32.5`.
 
 PLAY and REPLAY seek to `start` and stop automatically after `duration`.
-PLAY 15 MORE SECONDS continues from the current stopping point, extending an
+PLAY 20 MORE SECONDS continues from the current stopping point, extending an
 active clip or resuming a clip that has just stopped. STOP pauses immediately.
 
 Playback occurs only on the local Display. Firebase carries small playback

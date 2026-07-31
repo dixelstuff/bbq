@@ -61,12 +61,14 @@ export const mcqRounds = [
   {
     id: "mcq-powered-flight",
     question: "What is the only mammal capable of true powered flight?",
+    choices: ["Ostrich", "Flying squirrel", "Bat", "Sugar glider"],
     answer: "Bat",
     acceptedAnswers: ["bat", "bats"],
   },
   {
     id: "mcq-octopus-hearts",
     question: "How many hearts does an octopus have?",
+    choices: ["1", "2", "3", "8"],
     answer: "3",
     acceptedAnswers: ["3", "three"],
   },
@@ -74,22 +76,31 @@ export const mcqRounds = [
     id: "mcq-oldest-university",
     question:
       "Which university is generally recognised as the oldest continuously operating university?",
+    choices: [
+      "University of Oxford",
+      "University of Bologna",
+      "University of Salamanca",
+      "University of Paris",
+    ],
     answer: "University of Bologna",
     acceptedAnswers: ["university of bologna", "bologna"],
   },
   {
     id: "mcq-shortest-day",
     question: "Which planet has the shortest day?",
+    choices: ["Mercury", "Earth", "Saturn", "Jupiter"],
     answer: "Jupiter",
   },
   {
     id: "mcq-least-letter",
     question: "Which letter appears least frequently in English?",
+    choices: ["X", "J", "Q", "Z"],
     answer: "Q",
   },
   {
     id: "mcq-chess-squares",
     question: "How many total squares are there on a chessboard?",
+    choices: ["64", "128", "204", "256"],
     answer: "204",
   },
 ].map((round) =>
@@ -135,7 +146,7 @@ export const fastestFreeTextRounds = [
     audio: {
       file: "composers/abydos_music-beethoven-symphony-no-5-158810.mp3",
       start: 0,
-      duration: 15,
+      duration: 20,
     },
   },
   {
@@ -146,7 +157,7 @@ export const fastestFreeTextRounds = [
     audio: {
       file: "composers/josepmonter-also-sprach-zarathustra-4968.mp3",
       start: 18,
-      duration: 15,
+      duration: 20,
     },
   },
   {
@@ -158,7 +169,7 @@ export const fastestFreeTextRounds = [
     audio: {
       file: "composers/Classicals.de-Vivaldi-The-Four-Seasons-01-John-Harrison-with-the-Wichita-State-University-Chamber-Players-Spring-Mvt-1-Allegro.mp3",
       start: 0.75,
-      duration: 15,
+      duration: 20,
     },
   },
   {
@@ -170,7 +181,7 @@ export const fastestFreeTextRounds = [
     audio: {
       file: "composers/1Mars.wav",
       start: 65,
-      duration: 15,
+      duration: 20,
     },
   },
 ].map((round) =>

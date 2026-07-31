@@ -32,13 +32,13 @@ test("media commands are ordered deterministically", () => {
   assert.throws(() => createMediaCommand("explode", 0, 1234), /Unknown/);
 });
 
-test("excerpt stop and fifteen-second extension timings are deterministic", () => {
+test("excerpt stop and twenty-second extension timings are deterministic", () => {
   assert.equal(
     configuredStopTime({ file: "clip.mp3", start: 12.5, duration: 8 }),
     20.5,
   );
-  assert.equal(extendedStopTime(18, 20.5), 35.5);
-  assert.equal(extendedStopTime(20.5), 35.5);
+  assert.equal(extendedStopTime(18, 20.5), 40.5);
+  assert.equal(extendedStopTime(20.5), 40.5);
 });
 
 test("the four current composer rounds reference local Display clips", () => {
