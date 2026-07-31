@@ -12,6 +12,7 @@ import {
   mediaForAudience,
   roundTypes,
 } from "../shared/round-types.js";
+import { displayModes, displayModeForPhase } from "../shared/display-modes.js";
 
 const joinUrl = "https://dixelstuff.github.io/bbq/";
 const waitingScreen = document.querySelector("#waiting-screen");
@@ -19,10 +20,12 @@ const questionScreen = document.querySelector("#question-screen");
 const holdingScreen = document.querySelector("#holding-screen");
 const revealScreen = document.querySelector("#reveal-screen");
 const leaderboardScreen = document.querySelector("#leaderboard-screen");
-const pairingScreen = document.querySelector("#pairing-screen");
-const pairingTitleImage = document.querySelector("#pairing-title-image");
-const activePairNames = document.querySelector("#active-pair-names");
+const artworkScreen = document.querySelector("#artwork-screen");
+const roundArtwork = document.querySelector("#round-artwork");
+const activeGroupOverlay = document.querySelector("#active-group-overlay");
+const activeGroupNames = document.querySelector("#active-group-names");
 const groupsScreen = document.querySelector("#groups-screen");
+const groupsBackground = document.querySelector("#groups-background");
 const groupsModeTitle = document.querySelector("#groups-mode-title");
 const displayGroups = document.querySelector("#display-groups");
 const waitingPlayerCount = document.querySelector("#waiting-player-count");
@@ -39,6 +42,10 @@ const revealRoundType = document.querySelector("#reveal-round-type");
 const revealCorrectAnswer = document.querySelector("#reveal-correct-answer");
 const revealAnswers = document.querySelector("#reveal-answers");
 const leaderboard = document.querySelector("#leaderboard");
+const spellingRevealScreen = document.querySelector("#spelling-reveal-screen");
+const spellingRevealArtwork = document.querySelector("#spelling-reveal-artwork");
+const spellingRevealStatus = document.querySelector("#spelling-reveal-status");
+const spellingRevealWord = document.querySelector("#spelling-reveal-word");
 
 let players = [];
 let gameSnapshot;
@@ -97,7 +104,7 @@ function renderPlayerCounts() {
 }
 
 function renderGame(snapshot) {
-  const { state, definition, submissions, leaderboard: scores } = snapshot;
+  const { state, definition, round, submissions, leaderboard: scores } = snapshot;
 
   if (groupingSnapshot.showAssignments) {
     renderGroupingPresentation();
@@ -110,17 +117,14 @@ function renderGame(snapshot) {
   }
 
   if (state.phase === phases.question && definition) {
-    if (definition.type === roundTypes.pairingPrototype) {
-      showOnly(pairingScreen);
-      const titleMedia = resolveDisplayMedia(
-        mediaForAudience(definition, "display", "title"),
-      );
-      pairingTitleImage.hidden = !titleMedia;
-      if (titleMedia) {
-        pairingTitleImage.src = titleMedia.src;
-        pairingTitleImage.alt = titleMedia.alt ?? "";
-      }
-      renderActivePair();
+    const mode = round?.displayMode ?? displayModeForPhase(definition, state.phase);
+    if (
+      definition.type === roundTypes.spellingBee ||
+      definition.type === roundTypes.pairingPrototype ||
+      (definition.display &&
+        [displayModes.artwork, displayModes.overlay].includes(mode))
+    ) {
+      renderArtwork(definition, mode);
       return;
     }
     showOnly(questionScreen);
@@ -142,12 +146,20 @@ function renderGame(snapshot) {
   }
 
   if (state.phase === phases.marking) {
-    showOnly(holdingScreen);
-    holdingText.textContent = "ANSWERS LOCKED";
+    if (definition?.media?.title) {
+      renderArtwork(definition, displayModes.artwork);
+    } else {
+      showOnly(holdingScreen);
+      holdingText.textContent = "";
+    }
     return;
   }
 
   if (state.phase === phases.reveal && definition) {
+    if (definition.type === roundTypes.spellingBee) {
+      renderSpellingReveal(definition, round);
+      return;
+    }
     showOnly(revealScreen);
     revealRoundType.textContent = definition.typeLabel;
     revealQuestion.textContent = definition.question;
@@ -205,18 +217,53 @@ function showOnly(activeScreen) {
     holdingScreen,
     revealScreen,
     leaderboardScreen,
-    pairingScreen,
+    artworkScreen,
     groupsScreen,
+    spellingRevealScreen,
   ].forEach((screen) => {
     screen.hidden = screen !== activeScreen;
   });
 }
 
-function renderActivePair() {
-  const names = groupingSnapshot.activeGroup?.members
-    ?.map((member) => member.name)
-    .join(" + ");
-  activePairNames.textContent = names || "WAITING FOR PAIRS";
+function renderArtwork(definition, mode) {
+  showOnly(artworkScreen);
+  const titleMedia = resolveDisplayMedia(
+    mediaForAudience(definition, "display", "title"),
+  );
+  roundArtwork.hidden = !titleMedia;
+  if (titleMedia) {
+    roundArtwork.src = titleMedia.src;
+    roundArtwork.alt = titleMedia.alt ?? "";
+  }
+  const showOverlay =
+    mode === displayModes.overlay && definition.display?.overlay !== false;
+  activeGroupOverlay.hidden = !showOverlay;
+  activeGroupNames.replaceChildren(
+    ...(groupingSnapshot.activeGroup?.members ?? []).map((member) => {
+      const name = document.createElement("span");
+      name.textContent = member.name;
+      return name;
+    }),
+  );
+}
+
+function renderSpellingReveal(definition, round) {
+  showOnly(spellingRevealScreen);
+  const titleMedia = resolveDisplayMedia(
+    mediaForAudience(definition, "display", "title"),
+  );
+  spellingRevealArtwork.hidden = !titleMedia;
+  if (titleMedia) {
+    spellingRevealArtwork.src = titleMedia.src;
+    spellingRevealArtwork.alt = titleMedia.alt ?? "";
+  }
+  spellingRevealStatus.textContent = round?.result?.correct
+    ? "CORRECT"
+    : "INCORRECT";
+  spellingRevealStatus.className = round?.result?.correct
+    ? "is-correct"
+    : "is-incorrect";
+  spellingRevealWord.textContent = round?.result?.word ?? "";
 }
 
 function renderGroupingPresentation() {
@@ -225,17 +272,38 @@ function renderGroupingPresentation() {
     return;
   }
   showOnly(groupsScreen);
-  groupsModeTitle.textContent =
-    groupingSnapshot.mode === "two-teams" ? "TEAMS" : "GROUPS";
+  const groups = groupingSnapshot.groups ?? [];
+  const rosterTerm =
+    groupingSnapshot.mode === "two-teams"
+      ? "TEAMS"
+      : groupingSnapshot.mode === "individual"
+        ? "PLAYERS"
+        : groups.every((group) => group.memberIds?.length === 2)
+          ? "PAIRS"
+          : "GROUPS";
+  groupsModeTitle.textContent = `TONIGHT'S ${rosterTerm}`;
+  const titleMedia = resolveDisplayMedia(
+    mediaForAudience(gameSnapshot?.definition, "display", "title"),
+  );
+  groupsBackground.hidden = !titleMedia;
+  if (titleMedia) {
+    groupsBackground.src = titleMedia.src;
+    groupsBackground.alt = "";
+  }
   displayGroups.replaceChildren(
-    ...(groupingSnapshot.groups ?? []).map((group) => {
+    ...groups.map((group) => {
       const card = document.createElement("article");
       const heading = document.createElement("h2");
-      const names = document.createElement("p");
       heading.textContent = group.name;
-      names.textContent = group.members
-        .map((member) => member.name)
-        .join(" + ");
+      const names = document.createElement("div");
+      names.className = "roster-names";
+      names.replaceChildren(
+        ...group.members.map((member) => {
+          const name = document.createElement("span");
+          name.textContent = member.name;
+          return name;
+        }),
+      );
       card.append(heading, names);
       return card;
     }),

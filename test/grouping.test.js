@@ -208,15 +208,14 @@ test("group generation eligibility includes connected real and simulated players
   );
 });
 
-test("the Spelling Bee round declares bespoke turn-based pair flow", async () => {
-  const { spellingBeePairsRound } = await import(
+test("the Spelling Bee round declares an individual, quiet Display flow", async () => {
+  const { spellingBeeRound } = await import(
     "../shared/rounds/spelling-bee/round.js"
   );
-  assert.equal(spellingBeePairsRound.grouping.mode, groupingModes.pairs);
-  assert.equal(spellingBeePairsRound.participation, "turn-based");
-  assert.equal(
-    spellingBeePairsRound.flow.question.nextPhase,
-    "leaderboard",
-  );
-  assert.equal(spellingBeePairsRound.media.title.visibility, "display");
+  assert.equal(spellingBeeRound.grouping.mode, groupingModes.individual);
+  assert.equal(spellingBeeRound.participation, "turn-based");
+  assert.equal(spellingBeeRound.display.overlay, false);
+  assert.equal(spellingBeeRound.display.phases.question, "artwork");
+  assert.equal(spellingBeeRound.display.phases.reveal, "reveal");
+  assert.equal(spellingBeeRound.media.title.visibility, "display");
 });

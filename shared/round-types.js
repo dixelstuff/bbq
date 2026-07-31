@@ -2,6 +2,7 @@ export const roundTypes = {
   fastestFreeText: "fastest-free-text",
   closestWins: "closest-wins",
   pairingPrototype: "pairing-prototype",
+  spellingBee: "spelling-bee",
   manualScore: "manual-score",
 };
 

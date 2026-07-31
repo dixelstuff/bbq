@@ -643,7 +643,7 @@ function renderPlayerGame() {
       );
       pairMembers.textContent = playerGroup.members
         .map((member) => member.name)
-        .join(" + ");
+        .join("\n");
       pairWaiting.textContent = "Your group is ready.";
     }
     return;
@@ -655,7 +655,7 @@ function renderPlayerGame() {
   ) {
     pairView.hidden = false;
     pairMembers.textContent =
-      playerGroup?.members.map((member) => member.name).join(" + ") ?? "";
+      playerGroup?.members.map((member) => member.name).join("\n") ?? "";
     const active = playerGroup?.id === groupingSnapshot.activeGroupId;
     pairStatus.textContent = active
       ? "YOU’RE UP"
@@ -663,6 +663,18 @@ function renderPlayerGame() {
     pairWaiting.textContent = active
       ? "Head to the playing area!"
       : "Waiting for your turn…";
+    return;
+  }
+
+  if (definition?.type === roundTypes.spellingBee) {
+    waitingView.hidden = false;
+    const active = playerGroup?.id === groupingSnapshot.activeGroupId;
+    waitingMessage.textContent =
+      phase === phases.question && active
+        ? "You’re up."
+        : phase === phases.reveal && active
+          ? "The word has been revealed."
+          : "Spelling Bee is underway…";
     return;
   }
 

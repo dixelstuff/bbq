@@ -9,6 +9,12 @@ import {
   shouldAutoCloseRound,
 } from "./round-types.js";
 import { validSessionState } from "./session-state.js";
+import {
+  createGroups,
+  groupingModes,
+  participationModes,
+} from "./grouping.js";
+import { displayModeForPhase, displayModes } from "./display-modes.js";
 
 const sessionPath = "sessions/default";
 const phases = {
@@ -50,6 +56,7 @@ export async function observeGame(onChange) {
     onChange({
       state,
       definition: getRound(state.gameId, state.roundId),
+      round: session.round ?? {},
       submissions,
       players,
       leaderboard: [...players].sort(
@@ -83,13 +90,29 @@ export async function beginRound(roundId = partyGame.rounds[0].id) {
       players.map((player) => [player.id, player.name]),
     );
 
+    let grouping = session.grouping;
+    if (round.type === roundTypes.spellingBee) {
+      const groups = createGroups(players, groupingModes.individual);
+      grouping = {
+        mode: groupingModes.individual,
+        participation: participationModes.turnBased,
+        groups: Object.fromEntries(groups.map((group) => [group.id, group])),
+        activeGroupId: groups[0]?.id ?? null,
+        showAssignments: false,
+        createdAt: Date.now(),
+      };
+    }
+
     return {
       ...session,
+      grouping,
       lockedNames,
       round: {
         id: round.id,
         type: round.type,
         submissions: {},
+        itemIndex: 0,
+        displayMode: displayModeForPhase(round, phases.question),
         startedAt: Date.now(),
       },
       state: {
@@ -106,6 +129,111 @@ export async function beginRound(roundId = partyGame.rounds[0].id) {
     throw new Error("Generate pairs before starting this round");
   }
   return result;
+}
+
+export async function markSpelling({ word, correct }) {
+  const normalizedWord = String(word ?? "").trim().toUpperCase();
+  if (!normalizedWord) throw new Error("The spelling word is missing");
+
+  return transactSession((session, state) => {
+    const definition = getRound(state.gameId, state.roundId);
+    if (
+      state.phase !== phases.question ||
+      definition?.type !== roundTypes.spellingBee
+    ) {
+      return;
+    }
+
+    const activeGroup =
+      session.grouping?.groups?.[session.grouping?.activeGroupId];
+    const playerId = activeGroup?.memberIds?.[0];
+    const player = session.players?.[playerId];
+    if (!player) return;
+
+    const points = correct ? definition.scoring?.correctPoints ?? 1 : 0;
+    const players = {
+      ...session.players,
+      [playerId]: {
+        ...player,
+        score: (player.score ?? 0) + points,
+      },
+    };
+    const result = {
+      playerId,
+      playerName: session.lockedNames?.[playerId] ?? player.name,
+      word: normalizedWord,
+      correct: Boolean(correct),
+      points,
+      markedAt: Date.now(),
+    };
+
+    return {
+      ...session,
+      players,
+      round: {
+        ...session.round,
+        result,
+        displayMode: displayModes.reveal,
+        spellingResults: {
+          ...(session.round?.spellingResults ?? {}),
+          [`result-${Date.now()}`]: result,
+        },
+      },
+      state: {
+        ...state,
+        phase: phases.reveal,
+        phaseStartedAt: Date.now(),
+      },
+    };
+  });
+}
+
+export async function advanceSpelling() {
+  return transactSession((session, state) => {
+    const definition = getRound(state.gameId, state.roundId);
+    if (
+      state.phase !== phases.reveal ||
+      definition?.type !== roundTypes.spellingBee
+    ) {
+      return;
+    }
+
+    const groups = Object.values(session.grouping?.groups ?? {}).filter(
+      (group) => group.memberIds?.length,
+    );
+    const activeIndex = groups.findIndex(
+      (group) => group.id === session.grouping?.activeGroupId,
+    );
+    const nextGroup = groups[activeIndex + 1];
+    if (!nextGroup) {
+      return {
+        ...withPhase(session, state, phases.leaderboard),
+        round: {
+          ...session.round,
+          displayMode: displayModes.leaderboard,
+        },
+      };
+    }
+
+    return {
+      ...session,
+      grouping: {
+        ...session.grouping,
+        activeGroupId: nextGroup.id,
+      },
+      round: {
+        ...session.round,
+        itemIndex: (session.round?.itemIndex ?? 0) + 1,
+        result: null,
+        displayMode: displayModes.artwork,
+      },
+      state: {
+        ...state,
+        phase: phases.question,
+        phaseStartedAt: Date.now(),
+      },
+    };
+  });
 }
 
 export async function closeAnswers() {

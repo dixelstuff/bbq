@@ -3,7 +3,7 @@ import {
   roundTypes,
   scoringStrategies,
 } from "../round-types.js";
-import { spellingBeePairsRound } from "../rounds/spelling-bee/round.js";
+import { spellingBeeRound } from "../rounds/spelling-bee/round.js";
 
 export const partyGame = {
   id: "birthday-party",
@@ -56,7 +56,7 @@ export const partyGame = {
       correctValue: 16900,
       notes: "Answers are ranked automatically by absolute distance from 16,900.",
     },
-    spellingBeePairsRound,
+    spellingBeeRound,
   ],
 };
 

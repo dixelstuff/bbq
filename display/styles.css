@@ -110,92 +110,168 @@ body {
   padding: 4rem;
 }
 
-.pairing-screen {
+.artwork-screen,
+.spelling-reveal-screen {
   position: relative;
   min-height: 100vh;
   overflow: hidden;
-  background: #061b23;
+  background: #050d0a;
 }
 
-.pairing-title-image {
+.round-artwork {
   width: 100vw;
   height: 100vh;
   object-fit: cover;
 }
 
-.now-playing {
+.active-group-overlay {
   position: absolute;
-  right: 3vw;
-  bottom: 4vh;
-  left: 3vw;
-  border: 0.25rem solid #ffe16a;
-  border-radius: 1.5rem;
-  padding: clamp(1.2rem, 3vw, 2.5rem);
-  background: rgb(4 25 32 / 90%);
-  box-shadow: 0 1.5rem 5rem rgb(0 0 0 / 45%);
+  right: 4vw;
+  bottom: 6vh;
+  width: min(30rem, 42vw);
+  border: 1px solid rgb(255 255 255 / 24%);
+  border-radius: 1rem;
+  padding: 0.8rem 1.2rem 1rem;
+  background: rgb(4 25 32 / 70%);
+  box-shadow: 0 0.8rem 2.5rem rgb(0 0 0 / 28%);
+  backdrop-filter: blur(0.8rem);
   text-align: center;
 }
 
-.now-playing p {
-  margin: 0 0 0.5rem;
+.active-group-overlay p {
+  margin: 0 0 0.4rem;
   color: #ffe16a;
-  font-size: clamp(1rem, 2vw, 1.8rem);
-  font-weight: 800;
+  font-size: clamp(0.65rem, 1vw, 0.85rem);
+  font-weight: 750;
   letter-spacing: 0.18em;
 }
 
-.now-playing h1 {
-  margin: 0;
+.active-group-names,
+.roster-names {
+  display: grid;
+  justify-items: center;
+}
+
+.active-group-names {
+  gap: 0.15rem;
   color: #fff6c9;
-  font-size: clamp(3rem, 7vw, 7rem);
-  letter-spacing: -0.04em;
+  font-size: clamp(1.25rem, 2.25vw, 2rem);
+  font-weight: 680;
+  line-height: 1.08;
 }
 
 .groups-screen {
+  position: relative;
   display: grid;
   min-height: 100vh;
-  align-content: center;
-  gap: 2.5rem;
-  padding: 5rem;
-  background:
-    radial-gradient(circle at top left, #125947, transparent 42%),
-    #08211a;
+  overflow: hidden;
+  background: #061b17;
 }
 
-.groups-screen > p {
+.groups-background {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.18;
+  filter: blur(2px) saturate(0.7);
+}
+
+.groups-roster {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-content: center;
+  gap: clamp(1.5rem, 3vh, 2.5rem);
+  min-height: 100vh;
+  padding: 4rem 7vw;
+  background: linear-gradient(rgb(2 19 15 / 45%), rgb(2 19 15 / 74%));
+}
+
+.groups-roster > p {
   margin: 0;
   color: #ffe16a;
-  font-size: clamp(2rem, 4vw, 4rem);
-  font-weight: 850;
+  font-size: clamp(1.25rem, 2.5vw, 2.4rem);
+  font-weight: 760;
   letter-spacing: 0.16em;
   text-align: center;
 }
 
 .display-groups {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0;
+  width: min(100%, 72rem);
+  margin: 0 auto;
 }
 
 .display-groups article {
-  border: 0.2rem solid #a8f0ce;
-  border-radius: 1.5rem;
-  padding: 2rem;
-  background: rgb(4 25 32 / 72%);
+  padding: 1.4rem 2rem;
+  border-right: 1px solid rgb(168 240 206 / 28%);
   text-align: center;
 }
 
-.display-groups h2 {
-  margin: 0 0 1rem;
-  color: #a8f0ce;
-  font-size: clamp(1.5rem, 3vw, 3rem);
+.display-groups article:last-child {
+  border-right: 0;
 }
 
-.display-groups p {
+.display-groups h2 {
+  margin: 0 0 0.65rem;
+  color: #a8f0ce;
+  font-size: clamp(0.75rem, 1.2vw, 1rem);
+  letter-spacing: 0.16em;
+}
+
+.roster-names {
+  gap: 0.35rem;
+  font-size: clamp(1.35rem, 2.5vw, 2.35rem);
+  font-weight: 650;
+  line-height: 1.12;
+}
+
+.roster-names span:nth-child(even) {
+  color: #b9e8d4;
+}
+
+.spelling-reveal-screen .round-artwork {
+  opacity: 0.3;
+  filter: saturate(0.65);
+}
+
+.spelling-reveal-card {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 1rem;
+  padding: 5vw;
+  background: rgb(2 13 10 / 25%);
+  text-align: center;
+}
+
+.spelling-reveal-card p {
   margin: 0;
-  font-size: clamp(1.6rem, 3.5vw, 3.4rem);
-  font-weight: 750;
-  line-height: 1.25;
+  font-size: clamp(1rem, 2vw, 1.8rem);
+  font-weight: 800;
+  letter-spacing: 0.18em;
+}
+
+.spelling-reveal-card .is-correct {
+  color: #a8f0ce;
+}
+
+.spelling-reveal-card .is-incorrect {
+  color: #ffb2a8;
+}
+
+.spelling-reveal-card h1 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(4rem, 11vw, 10rem);
+  letter-spacing: -0.04em;
+  line-height: 0.95;
 }
 
 .display-game-screen {

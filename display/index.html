@@ -26,17 +26,28 @@
         <h1 id="holding-text">ANSWERS LOCKED</h1>
       </section>
 
-      <section id="pairing-screen" class="pairing-screen" hidden>
-        <img id="pairing-title-image" class="pairing-title-image" alt="" />
-        <div class="now-playing">
+      <section id="artwork-screen" class="artwork-screen" hidden>
+        <img id="round-artwork" class="round-artwork" alt="" />
+        <div id="active-group-overlay" class="active-group-overlay" hidden>
           <p>NOW PLAYING</p>
-          <h1 id="active-pair-names">WAITING FOR PAIRS</h1>
+          <div id="active-group-names" class="active-group-names"></div>
         </div>
       </section>
 
       <section id="groups-screen" class="groups-screen" hidden>
-        <p id="groups-mode-title">GROUPS</p>
-        <div id="display-groups" class="display-groups"></div>
+        <img id="groups-background" class="groups-background" alt="" />
+        <div class="groups-roster">
+          <p id="groups-mode-title">TONIGHT'S GROUPS</p>
+          <div id="display-groups" class="display-groups"></div>
+        </div>
+      </section>
+
+      <section id="spelling-reveal-screen" class="spelling-reveal-screen" hidden>
+        <img id="spelling-reveal-artwork" class="round-artwork" alt="" />
+        <div class="spelling-reveal-card">
+          <p id="spelling-reveal-status"></p>
+          <h1 id="spelling-reveal-word"></h1>
+        </div>
       </section>
 
       <section id="reveal-screen" class="display-results-screen" hidden>

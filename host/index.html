@@ -102,6 +102,26 @@
         <p id="round-type" class="eyebrow"></p>
       </section>
 
+      <section id="spelling-host" class="spelling-host stack" hidden>
+        <p class="eyebrow">Active contestant</p>
+        <select id="spelling-player" aria-label="Active spelling contestant"></select>
+        <div class="spelling-word-card">
+          <p class="eyebrow">Word</p>
+          <h2 id="spelling-word"></h2>
+          <p><strong>Pronunciation:</strong> <span id="spelling-pronunciation"></span></p>
+          <p><strong>Definition:</strong> <span id="spelling-definition"></span></p>
+          <p><strong>Example:</strong> <span id="spelling-example"></span></p>
+        </div>
+        <div id="spelling-marking" class="spelling-marking">
+          <button id="spelling-correct" class="mark-correct" type="button">
+            ✓ CORRECT
+          </button>
+          <button id="spelling-incorrect" class="mark-incorrect" type="button">
+            ✕ INCORRECT
+          </button>
+        </div>
+      </section>
+
       <section class="stack">
         <h2 id="submissions-heading" hidden>Submissions</h2>
         <p id="empty-submissions" hidden>No answers submitted yet.</p>

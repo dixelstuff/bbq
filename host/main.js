@@ -2,9 +2,11 @@ import "../shared/development.js";
 import "../shared/styles.css";
 import {
   beginRound,
+  advanceSpelling,
   closeAnswers,
   finishRound,
   markAllRemaining,
+  markSpelling,
   markSubmission,
   observeGame,
   overrideSubmissionPoints,
@@ -36,6 +38,7 @@ import {
   ensureSessionRelease,
   resetGame,
 } from "../shared/session-state.js";
+import { spellingBeeWords } from "./rounds/spelling-bee/content.js";
 
 const nextButton = document.querySelector("#next");
 const joinedCount = document.querySelector("#joined-count");
@@ -65,6 +68,15 @@ const roundSelect = document.querySelector("#round-select");
 const groupingPanel = document.querySelector("#grouping-panel");
 const hostGroups = document.querySelector("#host-groups");
 const groupAssignments = document.querySelector("#group-assignments");
+const spellingHost = document.querySelector("#spelling-host");
+const spellingPlayer = document.querySelector("#spelling-player");
+const spellingWord = document.querySelector("#spelling-word");
+const spellingPronunciation = document.querySelector("#spelling-pronunciation");
+const spellingDefinition = document.querySelector("#spelling-definition");
+const spellingExample = document.querySelector("#spelling-example");
+const spellingMarking = document.querySelector("#spelling-marking");
+const spellingCorrect = document.querySelector("#spelling-correct");
+const spellingIncorrect = document.querySelector("#spelling-incorrect");
 
 let gameSnapshot;
 let latestPlayers = [];
@@ -93,6 +105,9 @@ observePlayers(renderPlayers).catch((error) => {
 observeGrouping((grouping) => {
   latestGrouping = grouping;
   renderGrouping();
+  if (gameSnapshot?.definition?.type === roundTypes.spellingBee) {
+    renderSpellingHost(gameSnapshot.state, gameSnapshot.round);
+  }
 }).catch((error) => {
   console.error("[BBQ host] Unable to observe groups.", error);
 });
@@ -110,13 +125,17 @@ nextButton.addEventListener("click", async () => {
   const phase = gameSnapshot?.state.phase;
   const pairingRound =
     gameSnapshot?.definition?.type === roundTypes.pairingPrototype;
+  const spellingRound =
+    gameSnapshot?.definition?.type === roundTypes.spellingBee;
   const action = {
     [phases.lobby]: () => beginRound(roundSelect.value),
-    [phases.question]: pairingRound
+    [phases.question]: spellingRound
+      ? null
+      : pairingRound
       ? showPairingLeaderboard
       : closeAnswers,
     [phases.marking]: scoreAndReveal,
-    [phases.reveal]: showLeaderboard,
+    [phases.reveal]: spellingRound ? advanceSpelling : showLeaderboard,
     [phases.leaderboard]: finishRound,
     [phases.intermission]: () => beginRound(roundSelect.value),
   }[phase];
@@ -125,6 +144,18 @@ nextButton.addEventListener("click", async () => {
     await runAction(nextButton, action);
   }
 });
+
+spellingPlayer.addEventListener("change", () =>
+  runAction(spellingPlayer, () => setActiveGroup(spellingPlayer.value)),
+);
+
+spellingCorrect.addEventListener("click", () =>
+  markCurrentSpelling(true, spellingCorrect),
+);
+
+spellingIncorrect.addEventListener("click", () =>
+  markCurrentSpelling(false, spellingIncorrect),
+);
 
 document.querySelector("#generate-pairs").addEventListener("click", (event) =>
   runAction(event.currentTarget, () =>
@@ -241,17 +272,22 @@ function renderPlayers(players) {
 }
 
 function renderGame(snapshot) {
-  const { state, definition, submissions } = snapshot;
+  const { state, definition, round, submissions } = snapshot;
+  const isSpelling = definition?.type === roundTypes.spellingBee;
   phaseLabel.textContent = phaseTitle(state.phase);
   cueHeading.textContent =
     state.phase === phases.lobby ? "Welcome" : definition?.typeLabel ?? partyGame.title;
 
-  gamePanel.hidden = !definition;
+  gamePanel.hidden = !definition || isSpelling;
+  spellingHost.hidden = !isSpelling;
   bulkActions.hidden =
     state.phase !== phases.marking ||
     definition?.type !== roundTypes.fastestFreeText;
   const answerRound =
-    definition && definition.type !== roundTypes.pairingPrototype;
+    definition &&
+    ![roundTypes.pairingPrototype, roundTypes.spellingBee].includes(
+      definition.type,
+    );
   submissionsHeading.hidden = !answerRound;
   submissionsList.hidden = !answerRound;
   emptySubmissions.hidden = !answerRound || submissions.length > 0;
@@ -267,24 +303,59 @@ function renderGame(snapshot) {
   roundSelection.hidden = ![phases.lobby, phases.intermission].includes(
     state.phase,
   );
-  groupingPanel.hidden = !(
+  groupingPanel.hidden = isSpelling || !(
     state.phase === phases.lobby ||
     state.phase === phases.intermission ||
     definition?.type === roundTypes.pairingPrototype
   );
 
+  if (isSpelling) {
+    renderSpellingHost(state, round);
+  }
+
   const nextLabels = {
     [phases.lobby]: "START GAME",
     [phases.question]:
-      definition?.flow?.question?.hostLabel ?? "CLOSE ANSWERS",
+      isSpelling
+        ? "MARK THE SPELLING"
+        : definition?.flow?.question?.hostLabel ?? "CLOSE ANSWERS",
     [phases.marking]: "REVEAL RESULTS",
-    [phases.reveal]: "SHOW LEADERBOARD",
+    [phases.reveal]: isSpelling ? "NEXT PLAYER" : "SHOW LEADERBOARD",
     [phases.leaderboard]: "FINISH",
     [phases.intermission]: "START SELECTED ROUND",
   };
 
   nextButton.textContent = nextLabels[state.phase] ?? "NEXT";
-  nextButton.disabled = false;
+  nextButton.disabled = isSpelling && state.phase === phases.question;
+}
+
+function renderSpellingHost(state, round) {
+  const groups = latestGrouping.groups ?? [];
+  spellingPlayer.replaceChildren(
+    ...groups.map((group) => {
+      const option = document.createElement("option");
+      option.value = group.id;
+      option.textContent = group.members?.[0]?.name ?? group.name;
+      option.selected = group.id === latestGrouping.activeGroupId;
+      return option;
+    }),
+  );
+  spellingPlayer.disabled = state.phase !== phases.question;
+  const item = spellingBeeWords[
+    (round?.itemIndex ?? 0) % spellingBeeWords.length
+  ];
+  spellingWord.textContent = item?.word ?? "No word configured";
+  spellingPronunciation.textContent = item?.pronunciation ?? "";
+  spellingDefinition.textContent = item?.definition ?? "";
+  spellingExample.textContent = item?.example ?? "";
+  spellingMarking.hidden = state.phase !== phases.question;
+}
+
+async function markCurrentSpelling(correct, button) {
+  const item = spellingBeeWords[
+    (gameSnapshot?.round?.itemIndex ?? 0) % spellingBeeWords.length
+  ];
+  await runAction(button, () => markSpelling({ word: item.word, correct }));
 }
 
 function renderGrouping() {

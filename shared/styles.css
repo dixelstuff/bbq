@@ -514,6 +514,46 @@ dialog::backdrop {
   font-size: 1.2rem;
 }
 
+#pair-members {
+  white-space: pre-line;
+}
+
+.spelling-word-card {
+  border: 1px solid #dedbd3;
+  border-radius: 1rem;
+  padding: 1.25rem;
+  background: #fff;
+}
+
+.spelling-word-card h2 {
+  margin: 0.2rem 0 1rem;
+  font-size: clamp(2rem, 8vw, 4rem);
+  letter-spacing: -0.04em;
+}
+
+.spelling-word-card p {
+  line-height: 1.45;
+}
+
+.spelling-marking {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.spelling-marking button {
+  min-height: 5.5rem;
+  font-size: 1.15rem;
+}
+
+.mark-correct {
+  background: #287441;
+}
+
+.mark-incorrect {
+  background: #a3261e;
+}
+
 .host-game-image {
   max-height: 18rem;
 }
