@@ -1,7 +1,9 @@
 #!/bin/bash
 
 cd /Users/andrew/bbq || exit 1
-git pull origin main
+git fetch origin main
+git switch main
+git pull --ff-only origin main
 npm install
 
 port_pids="$(lsof -tiTCP:5173 -sTCP:LISTEN)"
