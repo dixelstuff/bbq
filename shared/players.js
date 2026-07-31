@@ -11,7 +11,7 @@ import { database, signIn } from "./firebase.js";
 const playersPath = "sessions/default/players";
 const connectedPath = ".info/connected";
 
-export async function maintainPlayerPresence(name) {
+export async function maintainPlayerPresence(name, onPresenceChange = () => {}) {
   const user = await signIn();
   const playerRef = ref(database, `${playersPath}/${user.uid}`);
   let connected = false;
@@ -71,6 +71,21 @@ export async function maintainPlayerPresence(name) {
     rejectConfirmations,
   );
 
+  const stopPresenceObserver = onValue(
+    playerRef,
+    (snapshot) => {
+      const confirmed = snapshot.exists() && snapshot.val()?.name === name;
+      onPresenceChange(confirmed);
+
+      // An old connection can finish its delayed onDisconnect after a new
+      // connection has already restored the same player record.
+      if (!confirmed && connected) {
+        queuePresenceWrite().catch(() => {});
+      }
+    },
+    rejectConfirmations,
+  );
+
   function confirmPresence() {
     return new Promise((resolve, reject) => {
       pendingConfirmations.push({ resolve, reject });
@@ -90,6 +105,7 @@ export async function maintainPlayerPresence(name) {
     stop() {
       stopped = true;
       stopConnectionObserver();
+      stopPresenceObserver();
     },
   };
 }

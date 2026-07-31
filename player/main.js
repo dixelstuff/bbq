@@ -95,22 +95,15 @@ function restorePresence(force = false) {
   }
 
   // Never carry a previous success message into a new restoration attempt.
-  showReconnecting(name);
-
-  clearTimeout(reconnectTimer);
-  reconnectTimer = window.setTimeout(() => {
-    if (restoreAttempt) {
-      reconnectButton.hidden = false;
-      status.dataset.error = "true";
-      status.textContent = "Still reconnecting. Tap below to try again.";
-    }
-  }, reconnectDelay);
+  beginReconnecting(name);
 
   const attempt = presence
     ? presence.refresh()
-    : maintainPlayerPresence(name).then((playerPresence) => {
-        presence = playerPresence;
-      });
+    : maintainPlayerPresence(name, handlePresenceChange).then(
+        (playerPresence) => {
+          presence = playerPresence;
+        },
+      );
 
   restoreAttempt = attempt;
 
@@ -134,7 +127,35 @@ function restorePresence(force = false) {
         restoreAttempt = undefined;
         clearTimeout(reconnectTimer);
       }
-    });
+  });
+}
+
+function beginReconnecting(name) {
+  showReconnecting(name);
+  clearTimeout(reconnectTimer);
+  reconnectTimer = window.setTimeout(showReconnectTimeout, reconnectDelay);
+}
+
+function handlePresenceChange(confirmed) {
+  const name = loadPlayerName();
+
+  if (!name) {
+    return;
+  }
+
+  if (confirmed) {
+    clearTimeout(reconnectTimer);
+    showConnected(name);
+    return;
+  }
+
+  beginReconnecting(name);
+}
+
+function showReconnectTimeout() {
+  reconnectButton.hidden = false;
+  status.dataset.error = "true";
+  status.textContent = "Still reconnecting. Tap below to try again.";
 }
 
 function showReconnecting(name) {
