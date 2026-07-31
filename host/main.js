@@ -38,7 +38,6 @@ import {
   awardGroupPoints,
   generateGrouping,
   groupingModes,
-  movePlayerToGroup,
   nextActiveGroupId,
   observeGrouping,
   participationModes,
@@ -92,7 +91,6 @@ const roundSelection = document.querySelector("#round-selection");
 const roundSelect = document.querySelector("#round-select");
 const groupingPanel = document.querySelector("#grouping-panel");
 const hostGroups = document.querySelector("#host-groups");
-const groupAssignments = document.querySelector("#group-assignments");
 const spellingHost = document.querySelector("#spelling-host");
 const spellingPlayer = document.querySelector("#spelling-player");
 const spellingWord = document.querySelector("#spelling-word");
@@ -264,12 +262,6 @@ spellingIncorrect.addEventListener("click", () =>
   markCurrentSpelling(false, spellingIncorrect),
 );
 
-document.querySelector("#charades-previous-group").addEventListener("click", () =>
-  cycleActiveGroup(-1),
-);
-document.querySelector("#charades-next-group").addEventListener("click", () =>
-  cycleActiveGroup(1),
-);
 document.querySelector("#charades-previous-prompt").addEventListener("click", (event) =>
   runAction(event.currentTarget, () => moveCharadesPrompt(-1)),
 );
@@ -308,42 +300,6 @@ document.querySelector("#show-groups").addEventListener("click", (event) =>
     setGroupingPresentation(!latestGrouping.showAssignments),
   ),
 );
-
-document.querySelector("#previous-group").addEventListener("click", () =>
-  cycleActiveGroup(-1),
-);
-
-document.querySelector("#next-group").addEventListener("click", () =>
-  cycleActiveGroup(1),
-);
-
-hostGroups.addEventListener("click", async (event) => {
-  const activeButton = event.target.closest("button[data-active-group]");
-  if (activeButton) {
-    await runAction(activeButton, () =>
-      setActiveGroup(activeButton.dataset.activeGroup),
-    );
-    return;
-  }
-  const awardButton = event.target.closest("button[data-award-group]");
-  if (awardButton) {
-    const points = awardButton
-      .closest(".host-group")
-      .querySelector("input[data-group-points]").value;
-    await runAction(awardButton, () =>
-      awardGroupPoints(awardButton.dataset.awardGroup, points),
-    );
-  }
-});
-
-groupAssignments.addEventListener("change", async (event) => {
-  const select = event.target.closest("select[data-group-player]");
-  if (select) {
-    await runAction(select, () =>
-      movePlayerToGroup(select.dataset.groupPlayer, select.value),
-    );
-  }
-});
 
 submissionsList.addEventListener("click", async (event) => {
   const pointsButton = event.target.closest("button[data-manual-points]");
@@ -655,81 +611,38 @@ async function markCurrentSpelling(correct, button) {
 async function awardCurrentCharadesGroup(points, button) {
   const groupId = latestGrouping.activeGroupId;
   if (!groupId) return;
-  await runAction(button, () =>
-    awardGroupPoints(groupId, points, {
+  await runAction(button, async () => {
+    await awardGroupPoints(groupId, points, {
       roundType: roundTypes.charades,
       promptIndex: gameSnapshot?.round?.promptIndex ?? 0,
-    }),
-  );
+    });
+    const nextId = nextActiveGroupId(
+      latestGrouping.groups ?? [],
+      groupId,
+      1,
+    );
+    if (nextId && nextId !== groupId) await activateCharadesTeam(nextId);
+  });
 }
 
 function renderGrouping() {
   const groups = latestGrouping.groups ?? [];
   document.querySelector("#show-groups").textContent =
     latestGrouping.showAssignments
-      ? "HIDE GROUPS ON DISPLAY"
-      : "SHOW GROUPS ON DISPLAY";
+      ? "HIDE TEAMS ON DISPLAY"
+      : "SHOW TEAMS ON DISPLAY";
   hostGroups.replaceChildren(
     ...groups.map((group) => {
       const card = document.createElement("article");
-      const active = group.id === latestGrouping.activeGroupId;
-      card.className = `host-group${active ? " active" : ""}`;
+      card.className = "host-group";
       card.innerHTML = `<div><strong>${escapeHtml(
         group.name,
-      )}${active ? " · ACTIVE" : ""}</strong><span>${escapeHtml(
-        group.members.map((member) => member.name).join(" + ") || "Empty",
-      )}</span></div><div class="group-score-controls"><button class="secondary small-button" type="button" data-active-group="${escapeHtml(
-        group.id,
-      )}">MAKE ACTIVE</button><input type="number" value="1" data-group-points aria-label="Points for ${escapeHtml(
-        group.name,
-      )}"><button type="button" data-award-group="${escapeHtml(
-        group.id,
-      )}">AWARD</button></div>`;
+      )}</strong><span>${escapeHtml(
+        group.members.map((member) => member.name).join(", ") || "Empty",
+      )}</span></div>`;
       return card;
     }),
   );
-
-  groupAssignments.replaceChildren(
-    ...latestPlayers.map((player) => {
-      const label = document.createElement("label");
-      const currentGroup = groups.find((group) =>
-        group.memberIds?.includes(player.id),
-      );
-      const select = document.createElement("select");
-      const name = document.createElement("span");
-      name.textContent = player.name;
-      select.dataset.groupPlayer = player.id;
-      select.setAttribute("aria-label", `Group for ${player.name}`);
-      select.replaceChildren(
-        ...groups.map((group) => {
-          const option = document.createElement("option");
-          option.value = group.id;
-          option.textContent = group.name;
-          option.selected = group.id === currentGroup?.id;
-          return option;
-        }),
-      );
-      select.disabled = groups.length === 0;
-      label.append(name, select);
-      return label;
-    }),
-  );
-}
-
-function cycleActiveGroup(direction) {
-  const groups = latestGrouping.groups ?? [];
-  const nextId = nextActiveGroupId(
-    groups,
-    latestGrouping.activeGroupId,
-    direction,
-  );
-  if (!nextId) return;
-  const changeActive = gameSnapshot?.definition?.type === roundTypes.charades
-    ? activateCharadesTeam
-    : setActiveGroup;
-  changeActive(nextId).catch((error) => {
-    console.error("[BBQ host] Unable to change the active group.", error);
-  });
 }
 
 const simulatorPanel = document.querySelector("#simulator-panel");
@@ -1069,8 +982,6 @@ document.addEventListener("keydown", (event) => {
     return;
   }
   const action = {
-    ArrowLeft: () => cycleActiveGroup(-1),
-    ArrowRight: () => cycleActiveGroup(1),
     "[": () => moveCharadesPrompt(-1),
     "]": () => moveCharadesPrompt(1),
     " ": () =>

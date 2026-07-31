@@ -7,7 +7,6 @@ import {
   submitAnswer,
   submitDefinitionVote,
 } from "../shared/game-engine.js";
-import { observeHostConnected } from "../shared/host-presence.js";
 import {
   observeGrouping,
   playerGroupLabel,
@@ -25,8 +24,6 @@ import {
   roundTypes,
 } from "../shared/round-types.js";
 
-const hostPassword = "bigfat";
-const hostAccessKey = "bbq.hostAccess";
 const playerNameKey = "bbq.playerName";
 const playerGenerationKey = "bbq.playerGeneration";
 const playerStepKey = "bbq.currentStep";
@@ -39,12 +36,6 @@ const input = document.querySelector("#name");
 const joinButton = form.querySelector('button[type="submit"]');
 const screen = document.querySelector("#screen");
 const status = document.querySelector("#status");
-const hostDialog = document.querySelector("#host-dialog");
-const hostForm = document.querySelector("#host-form");
-const hostPasswordInput = document.querySelector("#host-password");
-const hostError = document.querySelector("#host-error");
-const hostOpenButton = document.querySelector("#host-open");
-const hostCancelButton = document.querySelector("#host-cancel");
 const playerBadge = document.querySelector("#player-badge");
 const recoveryPanel = document.querySelector("#recovery-panel");
 const refreshButton = document.querySelector("#refresh-player");
@@ -95,8 +86,6 @@ let playerId;
 let gameSnapshot;
 let stopGameObserver;
 let gameRetryTimer;
-let hostConnected = false;
-let hostStatusKnown = false;
 let groupingSnapshot = { groups: [] };
 let answerDraftRoundKey;
 let confirmedLobbyName = loadPlayerName();
@@ -114,7 +103,6 @@ updatePlayerMode();
 updateDebugPanel();
 startStateObserver();
 startGameObserver();
-startHostObserver();
 startGroupingObserver();
 
 form.addEventListener("submit", async (event) => {
@@ -210,31 +198,6 @@ window.addEventListener("offline", () => {
   setConnectionState("Disconnected");
   logDevelopment("Browser reported that the network is offline.");
   scheduleFailureMessage();
-});
-
-hostOpenButton.addEventListener("click", () => {
-  hostError.textContent = "";
-  hostDialog.showModal();
-  hostPasswordInput.focus();
-});
-
-hostCancelButton.addEventListener("click", () => {
-  hostDialog.close();
-});
-
-hostForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-
-  if (hostPasswordInput.value !== hostPassword) {
-    hostError.dataset.error = "true";
-    hostError.textContent = "Incorrect password.";
-    hostPasswordInput.select();
-    return;
-  }
-
-  sessionStorage.setItem(hostAccessKey, "granted");
-  const hostUrl = new URL(`${import.meta.env.BASE_URL}host/`, window.location.origin);
-  window.location.assign(hostUrl);
 });
 
 async function submitName(rawName) {
@@ -351,18 +314,6 @@ function startGameObserver(force = false) {
       console.error("[BBQ player] Unable to observe the game; retrying.", error);
       gameRetryTimer = window.setTimeout(startGameObserver, retryDelay);
     });
-}
-
-function startHostObserver() {
-  observeHostConnected((connected) => {
-    hostConnected = connected;
-    hostStatusKnown = true;
-    updatePlayerMode();
-  }).catch((error) => {
-    console.error("[BBQ player] Unable to observe Host presence.", error);
-    hostStatusKnown = true;
-    updatePlayerMode();
-  });
 }
 
 function startGroupingObserver() {
@@ -646,16 +597,12 @@ function updatePlayerMode() {
   const name = loadPlayerName();
 
   form.hidden = gameStarted;
-  hostOpenButton.hidden = gameStarted || !hostStatusKnown || hostConnected;
   playerBadge.hidden = !gameStarted || !joined || !name;
   screen.hidden = gameStarted;
 
   if (gameStarted) {
     updateBadge(name);
     input.disabled = true;
-    if (hostDialog.open) {
-      hostDialog.close();
-    }
   } else {
     form.hidden = false;
     input.disabled = false;

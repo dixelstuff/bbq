@@ -23,9 +23,6 @@
         <p id="status" class="status" role="status" aria-live="polite"></p>
       </form>
       <p id="screen" aria-live="polite">Waiting — screen 1</p>
-      <button id="host-open" class="quiet-button" type="button">
-        Join as host
-      </button>
       <section id="waiting-view" class="player-waiting" hidden>
         <div class="bbq-wordmark" aria-label="BBQ">BBQ</div>
         <h1 id="waiting-message">Waiting for next round…</h1>
@@ -68,22 +65,6 @@
         <span>Last attempt: <b id="debug-reconnect">Never</b></span>
       </aside>
     </main>
-    <dialog id="host-dialog">
-      <form id="host-form" class="stack">
-        <h2>Host access</h2>
-        <label for="host-password">Password</label>
-        <input
-          id="host-password"
-          name="password"
-          type="password"
-          autocomplete="current-password"
-          required
-        />
-        <p id="host-error" class="status" role="alert"></p>
-        <button type="submit">CONTINUE</button>
-        <button id="host-cancel" class="secondary" type="button">CANCEL</button>
-      </form>
-    </dialog>
     <script type="module" src="./main.js"></script>
   </body>
 </html>
