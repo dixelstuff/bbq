@@ -3,20 +3,45 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BBQ</title>
-    <link rel="stylesheet" href="./shared/styles.css" />
+    <title>BBQ — Player</title>
   </head>
   <body>
     <main>
-      <section class="stack">
-        <p class="eyebrow">BBQ</p>
-        <h1>Choose a screen</h1>
-      </section>
-      <nav class="stack" aria-label="Applications">
-        <a class="launch-link" href="./display/">Display</a>
-        <a class="launch-link" href="./host/">Host</a>
-        <a class="launch-link" href="./player/">Player</a>
-      </nav>
+      <form id="join-form" class="stack">
+        <label for="name"><h1>Enter your name</h1></label>
+        <input
+          id="name"
+          name="name"
+          type="text"
+          maxlength="40"
+          autocomplete="name"
+          required
+        />
+        <button type="submit">JOIN</button>
+        <button id="reconnect" type="button" hidden>RECONNECT</button>
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+      </form>
+      <p id="screen" aria-live="polite">Waiting — screen 1</p>
+      <button id="host-open" class="quiet-button" type="button">
+        Join as host
+      </button>
     </main>
+    <dialog id="host-dialog">
+      <form id="host-form" class="stack">
+        <h2>Host access</h2>
+        <label for="host-password">Password</label>
+        <input
+          id="host-password"
+          name="password"
+          type="password"
+          autocomplete="current-password"
+          required
+        />
+        <p id="host-error" class="status" role="alert"></p>
+        <button type="submit">CONTINUE</button>
+        <button id="host-cancel" class="secondary" type="button">CANCEL</button>
+      </form>
+    </dialog>
+    <script type="module" src="./player/main.js"></script>
   </body>
 </html>

@@ -116,19 +116,79 @@ button.secondary:hover {
   background: #e9e6df;
 }
 
-.launch-link {
-  display: flex;
-  min-height: 3.5rem;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid #cfccc4;
-  color: inherit;
-  font-size: 1.25rem;
-  text-decoration: none;
+button.quiet-button {
+  min-height: auto;
+  justify-self: start;
+  width: auto;
+  padding: 0.25rem 0;
+  background: transparent;
+  color: #6b6962;
+  font-size: 0.82rem;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
 }
 
-.launch-link::after {
-  content: "→";
+button.quiet-button:hover {
+  background: transparent;
+  color: #181816;
+}
+
+dialog {
+  width: min(100% - 2rem, 24rem);
+  border: 0;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  background: #f4f2ed;
+  color: inherit;
+  box-shadow: 0 1.5rem 5rem rgb(24 24 22 / 25%);
+}
+
+dialog::backdrop {
+  background: rgb(24 24 22 / 45%);
+  backdrop-filter: blur(0.2rem);
+}
+
+.display-main {
+  width: min(100% - 4rem, 78rem);
+}
+
+.display-heading {
+  text-align: center;
+}
+
+.join-panel {
+  display: grid;
+  grid-template-columns: minmax(20rem, 1fr) minmax(20rem, 1fr);
+  gap: 5rem;
+  align-items: center;
+}
+
+#join-qr {
+  width: min(100%, 20rem);
+  height: auto;
+  border-radius: 0.75rem;
+}
+
+#join-url {
+  color: inherit;
+  font-size: 1.2rem;
+  text-underline-offset: 0.2em;
+}
+
+.player-count {
+  font-size: clamp(2rem, 5vw, 4rem);
+  font-weight: 580;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.player-names {
+  columns: 2;
+  margin: 0;
+  padding-left: 1.5rem;
+  font-size: 1.35rem;
+  line-height: 1.6;
 }
 
 .status {
@@ -139,4 +199,11 @@ button.secondary:hover {
 
 .status[data-error="true"] {
   color: #a3261e;
+}
+
+@media (max-width: 760px) {
+  .join-panel {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
 }

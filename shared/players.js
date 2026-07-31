@@ -1,4 +1,5 @@
 import {
+  get,
   onDisconnect,
   onValue,
   ref,
@@ -16,13 +17,7 @@ export async function maintainPlayerPresence(name) {
   let connected = false;
   let stopped = false;
   let writeQueue = Promise.resolve();
-  let resolveReady;
-  let rejectReady;
-
-  const ready = new Promise((resolve, reject) => {
-    resolveReady = resolve;
-    rejectReady = reject;
-  });
+  let pendingConfirmations = [];
 
   async function writePresence() {
     if (stopped || !connected) {
@@ -37,13 +32,30 @@ export async function maintainPlayerPresence(name) {
       joinedAt: serverTimestamp(),
     });
 
-    resolveReady();
+    // A successful set is acknowledged by Firebase. Read the record back so
+    // the Player UI only reports "You're in" after presence genuinely exists.
+    const snapshot = await get(playerRef);
+    const confirmed = snapshot.exists() && snapshot.val()?.name === name;
+
+    if (!confirmed) {
+      throw new Error("Player presence was not confirmed");
+    }
+
+    const confirmations = pendingConfirmations;
+    pendingConfirmations = [];
+    confirmations.forEach(({ resolve }) => resolve());
+  }
+
+  function rejectConfirmations(error) {
+    const confirmations = pendingConfirmations;
+    pendingConfirmations = [];
+    confirmations.forEach(({ reject }) => reject(error));
   }
 
   function queuePresenceWrite() {
     // A transient failed write must not poison future reconnect attempts.
     writeQueue = writeQueue.catch(() => {}).then(writePresence);
-    writeQueue.catch(rejectReady);
+    writeQueue.catch(rejectConfirmations);
     return writeQueue;
   }
 
@@ -53,17 +65,27 @@ export async function maintainPlayerPresence(name) {
       connected = snapshot.val() === true;
 
       if (connected) {
-        queuePresenceWrite();
+        queuePresenceWrite().catch(() => {});
       }
     },
-    rejectReady,
+    rejectConfirmations,
   );
 
-  await ready;
+  function confirmPresence() {
+    return new Promise((resolve, reject) => {
+      pendingConfirmations.push({ resolve, reject });
+
+      if (connected) {
+        queuePresenceWrite().catch(() => {});
+      }
+    });
+  }
+
+  await confirmPresence();
 
   return {
     refresh() {
-      return queuePresenceWrite();
+      return confirmPresence();
     },
     stop() {
       stopped = true;

@@ -5,21 +5,22 @@ A browser-based party show-running engine.
 Milestone 1 proves the connection between three browser applications using
 Firebase Anonymous Authentication and Realtime Database.
 
-## Run locally
+## Applications
+
+Player and Host are deployed publicly through GitHub Pages. Display is a local
+presentation application and is deliberately excluded from the public build.
+
+### Local Display
+
+Install dependencies once, then start only Display:
 
 ```sh
 npm install
-npm run dev
+npm run display
 ```
 
-Open:
-
-- `/display/` on the display
-- `/host/` on the host's phone
-- `/player/` on each player's phone
-
-Vite prints the local address when it starts. To test with phones on the same
-network, run `npm run dev -- --host`.
+Display opens at `http://127.0.0.1:5173/`. It communicates with the public Host
+and Players only through Firebase; they do not depend on the Mac or its network.
 
 ## Firebase data
 
@@ -41,7 +42,9 @@ three applications receive updates live.
 
 Pushes to `main` deploy automatically to GitHub Pages:
 
-- `https://dixelstuff.github.io/bbq/`
-- `https://dixelstuff.github.io/bbq/display/`
+- `https://dixelstuff.github.io/bbq/` — Player entry
+- `https://dixelstuff.github.io/bbq/player/` — Player entry alias
 - `https://dixelstuff.github.io/bbq/host/`
-- `https://dixelstuff.github.io/bbq/player/`
+
+The Host route requires the lightweight party password gate from the Player
+entry screen. Display is not included in the deployed artifact.

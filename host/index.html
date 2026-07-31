@@ -4,6 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BBQ — Host</title>
+    <script>
+      let hostAccessGranted = false;
+
+      try {
+        hostAccessGranted =
+          sessionStorage.getItem("bbq.hostAccess") === "granted";
+      } catch {
+        hostAccessGranted = false;
+      }
+
+      if (!hostAccessGranted) {
+        window.location.replace("/bbq/");
+      }
+    </script>
   </head>
   <body>
     <main>

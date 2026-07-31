@@ -2,3 +2,10 @@ allowBuilds:
   "@firebase/util": true
   esbuild: true
   protobufjs: true
+
+supportedArchitectures:
+  os:
+    - current
+  cpu:
+    - arm64
+    - x64

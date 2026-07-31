@@ -6,10 +6,26 @@
     <title>BBQ — Display</title>
   </head>
   <body>
-    <main>
-      <section class="stack">
-        <h1 id="screen">Screen 1</h1>
-        <p id="players">Waiting for host...</p>
+    <main class="display-main">
+      <section class="stack display-heading">
+        <p class="eyebrow">The party game</p>
+        <h1>BBQ</h1>
+        <p id="screen">Screen 1</p>
+      </section>
+
+      <section class="join-panel" aria-labelledby="join-heading">
+        <div class="stack">
+          <h2 id="join-heading">Join the game</h2>
+          <canvas id="join-qr" aria-label="QR code for the player website"></canvas>
+          <a id="join-url" href="https://dixelstuff.github.io/bbq/">
+            https://dixelstuff.github.io/bbq/
+          </a>
+        </div>
+
+        <div class="stack">
+          <p id="player-count" class="player-count">0 players connected</p>
+          <ol id="player-names" class="player-names"></ol>
+        </div>
       </section>
     </main>
     <script type="module" src="./main.js"></script>
