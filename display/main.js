@@ -22,6 +22,9 @@ const leaderboardScreen = document.querySelector("#leaderboard-screen");
 const pairingScreen = document.querySelector("#pairing-screen");
 const pairingTitleImage = document.querySelector("#pairing-title-image");
 const activePairNames = document.querySelector("#active-pair-names");
+const groupsScreen = document.querySelector("#groups-screen");
+const groupsModeTitle = document.querySelector("#groups-mode-title");
+const displayGroups = document.querySelector("#display-groups");
 const waitingPlayerCount = document.querySelector("#waiting-player-count");
 const cornerPlayerCounts = document.querySelectorAll(".corner-player-count");
 const playerNames = document.querySelector("#player-names");
@@ -64,7 +67,7 @@ observePlayers((nextPlayers) => {
 
 observeGrouping((grouping) => {
   groupingSnapshot = grouping;
-  renderActivePair();
+  renderGroupingPresentation();
 }).catch((error) => {
   console.error("Unable to observe groups", error);
 });
@@ -95,6 +98,11 @@ function renderPlayerCounts() {
 
 function renderGame(snapshot) {
   const { state, definition, submissions, leaderboard: scores } = snapshot;
+
+  if (groupingSnapshot.showAssignments) {
+    renderGroupingPresentation();
+    return;
+  }
 
   if (state.phase === phases.lobby) {
     showOnly(waitingScreen);
@@ -198,6 +206,7 @@ function showOnly(activeScreen) {
     revealScreen,
     leaderboardScreen,
     pairingScreen,
+    groupsScreen,
   ].forEach((screen) => {
     screen.hidden = screen !== activeScreen;
   });
@@ -208,6 +217,29 @@ function renderActivePair() {
     ?.map((member) => member.name)
     .join(" + ");
   activePairNames.textContent = names || "WAITING FOR PAIRS";
+}
+
+function renderGroupingPresentation() {
+  if (!groupingSnapshot.showAssignments) {
+    if (gameSnapshot) renderGame(gameSnapshot);
+    return;
+  }
+  showOnly(groupsScreen);
+  groupsModeTitle.textContent =
+    groupingSnapshot.mode === "two-teams" ? "TEAMS" : "GROUPS";
+  displayGroups.replaceChildren(
+    ...(groupingSnapshot.groups ?? []).map((group) => {
+      const card = document.createElement("article");
+      const heading = document.createElement("h2");
+      const names = document.createElement("p");
+      heading.textContent = group.name;
+      names.textContent = group.members
+        .map((member) => member.name)
+        .join(" + ");
+      card.append(heading, names);
+      return card;
+    }),
+  );
 }
 
 function escapeHtml(value) {

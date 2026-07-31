@@ -29,10 +29,23 @@ export function createGroups(players, mode, random = Math.random, custom = []) {
 
   const shuffled = shuffle(ids, random);
   if (mode === groupingModes.twoTeams) {
+    const firstTeamSize = Math.ceil(shuffled.length / 2);
     return [
-      { id: "group-1", name: "TEAM 1", memberIds: shuffled.filter((_, i) => i % 2 === 0) },
-      { id: "group-2", name: "TEAM 2", memberIds: shuffled.filter((_, i) => i % 2 === 1) },
+      {
+        id: "group-1",
+        name: "TEAM 1",
+        memberIds: shuffled.slice(0, firstTeamSize),
+      },
+      {
+        id: "group-2",
+        name: "TEAM 2",
+        memberIds: shuffled.slice(firstTeamSize),
+      },
     ];
+  }
+
+  if (mode === groupingModes.pairs) {
+    return createPairGroups(shuffled);
   }
 
   const size =
@@ -53,6 +66,44 @@ export function createGroups(players, mode, random = Math.random, custom = []) {
   }));
 }
 
+export function reassignPlayer(groups, playerId, groupId, mode) {
+  if (!groups?.[groupId]) return groups;
+  const updated = Object.fromEntries(
+    Object.entries(groups).map(([id, group]) => [
+      id,
+      {
+        ...group,
+        memberIds: (group.memberIds ?? []).filter((memberId) => memberId !== playerId),
+      },
+    ]),
+  );
+  updated[groupId] = {
+    ...updated[groupId],
+    memberIds: [...updated[groupId].memberIds, playerId],
+  };
+  if (mode !== groupingModes.twoTeams) {
+    for (const [id, group] of Object.entries(updated)) {
+      if (id !== groupId && group.memberIds.length === 0) delete updated[id];
+    }
+  }
+  return updated;
+}
+
+export function nextActiveGroupId(groups, activeGroupId, direction = 1) {
+  const available = groups.filter((group) => (group.memberIds ?? []).length > 0);
+  if (!available.length) return undefined;
+  const current = available.findIndex((group) => group.id === activeGroupId);
+  const start = current < 0 ? 0 : current;
+  return available[
+    (start + direction + available.length) % available.length
+  ].id;
+}
+
+export function playerGroupLabel(group, mode) {
+  if (mode === groupingModes.twoTeams) return "YOUR TEAM";
+  return group?.memberIds?.length === 2 ? "YOUR PAIR" : "YOUR GROUP";
+}
+
 export function creditGroupMembers(players, group, points, generation) {
   const updated = { ...players };
   for (const playerId of group.memberIds ?? []) {
@@ -66,6 +117,18 @@ export function creditGroupMembers(players, group, points, generation) {
   return updated;
 }
 
+export function connectedPlayers(session, generation) {
+  return Object.entries(session.players ?? {})
+    .filter(
+      ([id, player]) =>
+        player.generation === generation &&
+        Object.values(session.connections?.[id] ?? {}).some(
+          (connection) => connection?.generation === generation,
+        ),
+    )
+    .map(([id, player]) => ({ id, ...player }));
+}
+
 export async function generateGrouping(
   mode,
   participation = participationModes.simultaneous,
@@ -74,9 +137,7 @@ export async function generateGrouping(
   return runTransaction(ref(database, sessionPath), (session) => {
     const current = session ?? {};
     const state = validSessionState(current.state);
-    const players = Object.entries(current.players ?? {})
-      .filter(([, player]) => player.generation === state.generation)
-      .map(([id, player]) => ({ id, ...player }));
+    const players = connectedPlayers(current, state.generation);
     if (!players.length) return;
     const groups = createGroups(players, mode);
     return {
@@ -86,6 +147,7 @@ export async function generateGrouping(
         participation,
         groups: Object.fromEntries(groups.map((group) => [group.id, group])),
         activeGroupId: groups[0]?.id ?? null,
+        showAssignments: current.grouping?.showAssignments ?? false,
         createdAt: Date.now(),
       },
     };
@@ -95,20 +157,16 @@ export async function generateGrouping(
 export async function movePlayerToGroup(playerId, groupId) {
   return transactGrouping((grouping) => {
     if (!grouping.groups?.[groupId]) return;
-    const groups = Object.fromEntries(
-      Object.entries(grouping.groups).map(([id, group]) => [
-        id,
-        {
-          ...group,
-          memberIds: (group.memberIds ?? []).filter((id) => id !== playerId),
-        },
-      ]),
+    const groups = reassignPlayer(
+      grouping.groups,
+      playerId,
+      groupId,
+      grouping.mode,
     );
-    groups[groupId] = {
-      ...groups[groupId],
-      memberIds: [...groups[groupId].memberIds, playerId],
-    };
-    return { ...grouping, groups, editedAt: Date.now() };
+    const activeGroupId = groups[grouping.activeGroupId]
+      ? grouping.activeGroupId
+      : Object.keys(groups)[0] ?? null;
+    return { ...grouping, groups, activeGroupId, editedAt: Date.now() };
   });
 }
 
@@ -118,6 +176,13 @@ export async function setActiveGroup(groupId) {
       ? { ...grouping, activeGroupId: groupId }
       : undefined,
   );
+}
+
+export async function setGroupingPresentation(showAssignments) {
+  return transactGrouping((grouping) => ({
+    ...grouping,
+    showAssignments: Boolean(showAssignments),
+  }));
 }
 
 export async function awardGroupPoints(groupId, points) {
@@ -201,4 +266,18 @@ function chunk(values, size) {
     result.push(values.slice(index, index + size));
   }
   return result;
+}
+
+function createPairGroups(shuffled) {
+  const remaining = [...shuffled];
+  const groups = [];
+  while (remaining.length > 3) {
+    groups.push(remaining.splice(0, 2));
+  }
+  if (remaining.length) groups.push(remaining);
+  return groups.map((memberIds, index) => ({
+    id: `group-${index + 1}`,
+    name: `PAIR ${index + 1}`,
+    memberIds,
+  }));
 }

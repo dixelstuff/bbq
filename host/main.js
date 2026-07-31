@@ -23,9 +23,11 @@ import {
   generateGrouping,
   groupingModes,
   movePlayerToGroup,
+  nextActiveGroupId,
   observeGrouping,
   participationModes,
   setActiveGroup,
+  setGroupingPresentation,
 } from "../shared/grouping.js";
 import { observePlayers } from "../shared/players.js";
 import { releaseId } from "../shared/release.js";
@@ -127,6 +129,18 @@ nextButton.addEventListener("click", async () => {
 document.querySelector("#generate-pairs").addEventListener("click", (event) =>
   runAction(event.currentTarget, () =>
     generateGrouping(groupingModes.pairs, participationModes.turnBased),
+  ),
+);
+
+document.querySelector("#generate-teams").addEventListener("click", (event) =>
+  runAction(event.currentTarget, () =>
+    generateGrouping(groupingModes.twoTeams, participationModes.simultaneous),
+  ),
+);
+
+document.querySelector("#show-groups").addEventListener("click", (event) =>
+  runAction(event.currentTarget, () =>
+    setGroupingPresentation(!latestGrouping.showAssignments),
   ),
 );
 
@@ -275,6 +289,10 @@ function renderGame(snapshot) {
 
 function renderGrouping() {
   const groups = latestGrouping.groups ?? [];
+  document.querySelector("#show-groups").textContent =
+    latestGrouping.showAssignments
+      ? "HIDE GROUPS ON DISPLAY"
+      : "SHOW GROUPS ON DISPLAY";
   hostGroups.replaceChildren(
     ...groups.map((group) => {
       const card = document.createElement("article");
@@ -324,12 +342,13 @@ function renderGrouping() {
 
 function cycleActiveGroup(direction) {
   const groups = latestGrouping.groups ?? [];
-  if (!groups.length) return;
-  const current = groups.findIndex(
-    (group) => group.id === latestGrouping.activeGroupId,
+  const nextId = nextActiveGroupId(
+    groups,
+    latestGrouping.activeGroupId,
+    direction,
   );
-  const next = (Math.max(current, 0) + direction + groups.length) % groups.length;
-  setActiveGroup(groups[next].id).catch((error) => {
+  if (!nextId) return;
+  setActiveGroup(nextId).catch((error) => {
     console.error("[BBQ host] Unable to change the active group.", error);
   });
 }

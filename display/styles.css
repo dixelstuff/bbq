@@ -151,6 +151,53 @@ body {
   letter-spacing: -0.04em;
 }
 
+.groups-screen {
+  display: grid;
+  min-height: 100vh;
+  align-content: center;
+  gap: 2.5rem;
+  padding: 5rem;
+  background:
+    radial-gradient(circle at top left, #125947, transparent 42%),
+    #08211a;
+}
+
+.groups-screen > p {
+  margin: 0;
+  color: #ffe16a;
+  font-size: clamp(2rem, 4vw, 4rem);
+  font-weight: 850;
+  letter-spacing: 0.16em;
+  text-align: center;
+}
+
+.display-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2rem;
+}
+
+.display-groups article {
+  border: 0.2rem solid #a8f0ce;
+  border-radius: 1.5rem;
+  padding: 2rem;
+  background: rgb(4 25 32 / 72%);
+  text-align: center;
+}
+
+.display-groups h2 {
+  margin: 0 0 1rem;
+  color: #a8f0ce;
+  font-size: clamp(1.5rem, 3vw, 3rem);
+}
+
+.display-groups p {
+  margin: 0;
+  font-size: clamp(1.6rem, 3.5vw, 3.4rem);
+  font-weight: 750;
+  line-height: 1.25;
+}
+
 .display-game-screen {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto auto;

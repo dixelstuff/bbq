@@ -3,7 +3,10 @@ import "../shared/styles.css";
 import { restartDatabaseConnection } from "../shared/firebase.js";
 import { observeGame, phases, submitAnswer } from "../shared/game-engine.js";
 import { observeHostConnected } from "../shared/host-presence.js";
-import { observeGrouping } from "../shared/grouping.js";
+import {
+  observeGrouping,
+  playerGroupLabel,
+} from "../shared/grouping.js";
 import {
   getJoinedPlayer,
   maintainPlayerPresence,
@@ -623,7 +626,26 @@ function renderPlayerGame() {
   playerResult.hidden = true;
   pairView.hidden = true;
 
-  if (!joined || currentState.step === 1) {
+  if (!joined) {
+    return;
+  }
+
+  const playerGroup = groupingSnapshot.groups?.find((group) =>
+    group.memberIds?.includes(playerId),
+  );
+
+  if (currentState.step === 1) {
+    if (playerGroup) {
+      pairView.hidden = false;
+      pairStatus.textContent = playerGroupLabel(
+        playerGroup,
+        groupingSnapshot.mode,
+      );
+      pairMembers.textContent = playerGroup.members
+        .map((member) => member.name)
+        .join(" + ");
+      pairWaiting.textContent = "Your group is ready.";
+    }
     return;
   }
 
@@ -631,15 +653,13 @@ function renderPlayerGame() {
     definition?.type === roundTypes.pairingPrototype &&
     phase === phases.question
   ) {
-    const playerGroup = groupingSnapshot.groups?.find((group) =>
-      group.memberIds?.includes(playerId),
-    );
     pairView.hidden = false;
     pairMembers.textContent =
-      playerGroup?.members.map((member) => member.name).join(" + ") ??
-      "PAIR NOT ASSIGNED";
+      playerGroup?.members.map((member) => member.name).join(" + ") ?? "";
     const active = playerGroup?.id === groupingSnapshot.activeGroupId;
-    pairStatus.textContent = active ? "YOU’RE UP" : "YOUR PAIR";
+    pairStatus.textContent = active
+      ? "YOU’RE UP"
+      : playerGroupLabel(playerGroup, groupingSnapshot.mode);
     pairWaiting.textContent = active
       ? "Head to the playing area!"
       : "Waiting for your turn…";

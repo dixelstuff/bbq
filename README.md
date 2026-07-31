@@ -89,6 +89,11 @@ manually edited, reused or regenerated. Turn-based rounds share an active group
 through Firebase. Group awards credit every current member and are retained in
 round history before the next round starts.
 
+Grouping generation uses the complete connected-player set. Odd PAIRS groups
+finish with three members rather than creating a singleton. TWO TEAMS produces
+two randomized teams whose sizes differ by at most one. The Host can reassign
+members manually and can temporarily present all assignments on the Display.
+
 Every production build and local Display build carries its Git commit as a
 release identifier. The first updated Host or Display to connect resets the
 Firebase session once for that release, preventing an old in-progress round
