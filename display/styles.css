@@ -32,12 +32,12 @@ body {
   display: grid;
   place-content: center;
   justify-items: center;
-  gap: clamp(2rem, 6vh, 5rem);
-  padding: 4rem;
+  gap: clamp(1.25rem, 3vh, 2.5rem);
+  padding: 3rem 4rem;
 }
 
 #join-qr {
-  width: min(52vh, 44vw, 32.5rem);
+  width: min(42vh, 36vw, 27rem);
   height: auto;
   border-radius: 1rem;
 }
@@ -49,6 +49,24 @@ body {
   font-weight: 750;
   letter-spacing: -0.05em;
   line-height: 0.9;
+}
+
+.player-names {
+  width: min(90vw, 70rem);
+  margin: 0;
+  padding: 0;
+  columns: 3;
+  column-gap: 3rem;
+  color: #f4fff8;
+  font-size: clamp(1.5rem, 2.8vw, 2.6rem);
+  font-weight: 600;
+  line-height: 1.35;
+  list-style-position: inside;
+  text-align: center;
+}
+
+.player-names li {
+  break-inside: avoid;
 }
 
 .game-screen {

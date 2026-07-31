@@ -1,38 +1,88 @@
-import { onValue, ref, runTransaction, set } from "firebase/database";
+import { onValue, ref, runTransaction } from "firebase/database";
 import { database, signIn } from "./firebase.js";
 
-const stepPath = "sessions/default/state/step";
+const sessionPath = "sessions/default";
 const firstStep = 1;
+const firstGeneration = 1;
 
-function validStep(value) {
-  return Number.isInteger(value) && value >= firstStep ? value : firstStep;
+export function validSessionState(value) {
+  return {
+    step:
+      Number.isInteger(value?.step) && value.step >= firstStep
+        ? value.step
+        : firstStep,
+    generation:
+      Number.isInteger(value?.generation) && value.generation >= firstGeneration
+        ? value.generation
+        : firstGeneration,
+  };
+}
+
+export async function observeSessionState(onChange) {
+  await signIn();
+  const sessionRef = ref(database, sessionPath);
+
+  await runTransaction(sessionRef, (session) => {
+    const current = session ?? {};
+    return {
+      ...current,
+      state: validSessionState(current.state),
+    };
+  });
+
+  return onValue(ref(database, `${sessionPath}/state`), (snapshot) => {
+    onChange(validSessionState(snapshot.val()));
+  });
 }
 
 export async function observeStep(onChange) {
-  await signIn();
-  const stepRef = ref(database, stepPath);
-
-  // Create the shared state on first use without overwriting an existing step.
-  await runTransaction(stepRef, (step) => validStep(step));
-
-  return onValue(stepRef, (snapshot) => {
-    onChange(validStep(snapshot.val()));
-  });
+  return observeSessionState(({ step }) => onChange(step));
 }
 
 export async function incrementStep() {
   await signIn();
 
-  const result = await runTransaction(
-    ref(database, stepPath),
-    (step) => validStep(step) + 1,
-  );
+  const result = await runTransaction(ref(database, sessionPath), (session) => {
+    const current = session ?? {};
+    const state = validSessionState(current.state);
+    const lockedNames =
+      state.step === firstStep
+        ? Object.fromEntries(
+            Object.entries(current.players ?? {})
+              .filter(([, player]) => player?.generation === state.generation)
+              .map(([id, player]) => [id, player.name]),
+          )
+        : current.lockedNames;
 
-  return validStep(result.snapshot.val());
+    return {
+      ...current,
+      lockedNames,
+      state: {
+        ...state,
+        step: state.step + 1,
+      },
+    };
+  });
+
+  return validSessionState(result.snapshot.val()?.state).step;
 }
 
-export async function resetStep() {
+export async function resetGame() {
   await signIn();
-  await set(ref(database, stepPath), firstStep);
-  return firstStep;
+
+  const result = await runTransaction(ref(database, sessionPath), (session) => {
+    const state = validSessionState(session?.state);
+
+    // Replacing the complete session deliberately clears players, connections,
+    // answers, scores, rounds, and any future per-game state in one operation.
+    return {
+      state: {
+        step: firstStep,
+        generation: state.generation + 1,
+        resetAt: Date.now(),
+      },
+    };
+  });
+
+  return validSessionState(result.snapshot.val()?.state);
 }

@@ -40,18 +40,29 @@ Milestone 1 uses one deliberately small path:
 ```text
 sessions/default/
 ├── players/{anonymous-user-id}
-└── state/step
+├── connections/{anonymous-user-id}/{connection-id}
+├── lockedNames/{anonymous-user-id}
+└── state/
+    ├── step
+    └── generation
 ```
 
-Each player record contains a name and a joined timestamp. The record is removed
-automatically when that player's Firebase connection closes.
+Player records are durable for the current game. Temporary Firebase connection
+records use `onDisconnect` cleanup, allowing Host to distinguish joined players
+from their live connection status without losing scores, answers, or names.
+`RESET GAME` replaces the complete session and increments its generation, which
+invalidates saved identities in every open Player browser.
 
 Firebase Anonymous Authentication is stored independently by each browser, so
 Safari, Chrome, and other browser profiles act as separate players. Tabs in the
 same browser profile intentionally represent the same player.
 
-The shared numeric step starts at `1`. The host can advance or reset it, and all
-three applications receive updates live.
+The shared numeric step starts at `1`. Names can be edited live while it remains
+at `1`; the atomic session transaction snapshots and locks them as soon as Host
+advances. Running-game clients read that snapshot, so a stale Screen 1 browser
+cannot change the accepted names.
+Host can advance or fully reset the game, and all three applications receive
+updates live.
 
 ## Public deployment
 

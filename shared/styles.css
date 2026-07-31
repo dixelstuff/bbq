@@ -120,6 +120,16 @@ button.secondary:hover {
   background: #e9e6df;
 }
 
+button.danger {
+  border-color: #a3261e;
+  background: #a3261e;
+  color: #fff;
+}
+
+button.danger:hover {
+  background: #7f1d17;
+}
+
 button.quiet-button {
   min-height: auto;
   justify-self: start;
@@ -218,14 +228,54 @@ dialog::backdrop {
   font-weight: 600;
 }
 
-.game-connection-status {
+.recovery-panel {
   position: fixed;
-  right: max(1rem, env(safe-area-inset-right));
-  bottom: max(1rem, env(safe-area-inset-bottom));
-  left: max(1rem, env(safe-area-inset-left));
-  color: #a3261e;
-  font-size: 0.9rem;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-content: center;
+  gap: 1rem;
+  padding: 2rem;
+  background: rgb(244 242 237 / 96%);
   text-align: center;
+}
+
+.recovery-panel h2 {
+  color: #a3261e;
+  font-size: clamp(2rem, 8vw, 4rem);
+}
+
+.recovery-panel button {
+  min-width: min(100%, 22rem);
+  min-height: 4.5rem;
+  font-size: 1.05rem;
+}
+
+.host-player {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1rem;
+  align-items: center;
+  border-bottom: 1px solid #dedbd3;
+  padding: 0.65rem 0;
+}
+
+.host-player.disconnected {
+  color: #8a8881;
+}
+
+.connection-label {
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem;
+  background: #dcecdf;
+  color: #287441;
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.host-player.disconnected .connection-label {
+  background: #f1d9d6;
+  color: #a3261e;
 }
 
 .debug-panel {

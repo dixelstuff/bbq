@@ -34,11 +34,26 @@
       </section>
 
       <div class="actions">
-        <button id="reset" class="secondary" type="button">RESET</button>
+        <button id="reset-game" class="danger secondary" type="button">
+          RESET GAME
+        </button>
         <button id="next" type="button">NEXT</button>
       </div>
       <p id="action-status" class="status" role="status" aria-live="polite"></p>
     </main>
+    <dialog id="reset-dialog">
+      <section class="stack">
+        <h2>Reset the entire game?</h2>
+        <p>
+          This removes every player and all game data. Everyone will need to
+          join again.
+        </p>
+        <button id="reset-confirm" class="danger" type="button">
+          RESET GAME
+        </button>
+        <button id="reset-cancel" class="secondary" type="button">CANCEL</button>
+      </section>
+    </dialog>
     <script type="module" src="./main.js"></script>
   </body>
 </html>

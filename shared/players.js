@@ -2,22 +2,124 @@ import {
   get,
   onDisconnect,
   onValue,
+  push,
   ref,
+  remove,
+  runTransaction,
   serverTimestamp,
   set,
 } from "firebase/database";
 import { database, signIn } from "./firebase.js";
+import { validSessionState } from "./session-state.js";
 
-const playersPath = "sessions/default/players";
+const sessionPath = "sessions/default";
 const connectedPath = ".info/connected";
 
+export class NameLockedError extends Error {
+  constructor() {
+    super("Player names are locked for this game");
+    this.name = "NameLockedError";
+  }
+}
+
+export async function savePlayerName(name) {
+  const user = await signIn();
+  const sessionRef = ref(database, sessionPath);
+  let rejectedState;
+
+  // Warm the complete session into the local cache before transacting at its
+  // root. Without this, a newly opened browser may initially see only the
+  // separately observed state child and make a false lock decision.
+  const sessionSnapshot = await get(sessionRef);
+  const expectedState = validSessionState(sessionSnapshot.val()?.state);
+
+  if (expectedState.step !== 1) {
+    throw new NameLockedError();
+  }
+
+  const result = await runTransaction(sessionRef, (session) => {
+    const current = session ?? {};
+    const cachedState = validSessionState(current.state);
+    const state =
+      cachedState.generation < expectedState.generation
+        ? expectedState
+        : cachedState;
+
+    if (
+      state.generation !== expectedState.generation ||
+      state.step !== 1
+    ) {
+      rejectedState = cachedState;
+      return;
+    }
+
+    const players = current.players ?? {};
+    const existing = players[user.uid];
+
+    return {
+      ...current,
+      state,
+      players: {
+        ...players,
+        [user.uid]: {
+          ...existing,
+          name,
+          generation: state.generation,
+          joinedAt: existing?.joinedAt ?? Date.now(),
+          updatedAt: Date.now(),
+        },
+      },
+    };
+  });
+
+  if (!result.committed) {
+    if (import.meta.env.DEV) {
+      console.warn(
+        `[BBQ development] Name transaction was rejected. Expected ${JSON.stringify(
+          expectedState,
+        )}; received ${JSON.stringify(rejectedState)}.`,
+      );
+    }
+    throw new NameLockedError();
+  }
+
+  return {
+    id: user.uid,
+    ...result.snapshot.val().players[user.uid],
+  };
+}
+
+export async function getJoinedPlayer(generation) {
+  const user = await signIn();
+  const snapshot = await get(ref(database, sessionPath));
+  const session = snapshot.val() ?? {};
+  const state = validSessionState(session.state);
+  const player = session.players?.[user.uid];
+
+  if (!player || player.generation !== generation) {
+    return undefined;
+  }
+
+  return {
+    id: user.uid,
+    ...player,
+    name:
+      state.step > 1
+        ? session.lockedNames?.[user.uid] ?? player.name
+        : player.name,
+  };
+}
+
 export async function maintainPlayerPresence(
-  name,
+  generation,
   onPresenceChange = () => {},
   signal,
 ) {
   const user = await signIn();
-  const playerRef = ref(database, `${playersPath}/${user.uid}`);
+  const connectionRef = push(
+    ref(database, `${sessionPath}/connections/${user.uid}`),
+  );
+  const disconnectOperation = onDisconnect(connectionRef);
   let connected = false;
   let stopped = false;
   let writeQueue = Promise.resolve();
@@ -27,6 +129,12 @@ export async function maintainPlayerPresence(
 
   function stoppedError() {
     return new DOMException("Player presence restoration was replaced", "AbortError");
+  }
+
+  function rejectConfirmations(error) {
+    const confirmations = pendingConfirmations;
+    pendingConfirmations = [];
+    confirmations.forEach(({ reject }) => reject(error));
   }
 
   function stop() {
@@ -39,6 +147,8 @@ export async function maintainPlayerPresence(
     stopPresenceObserver();
     rejectConfirmations(stoppedError());
     signal?.removeEventListener("abort", stop);
+    disconnectOperation.cancel().catch(logTransientError);
+    remove(connectionRef).catch(logTransientError);
   }
 
   if (signal?.aborted) {
@@ -53,21 +163,23 @@ export async function maintainPlayerPresence(
       return;
     }
 
-    // Register cleanup before every write. Firebase clears onDisconnect
-    // handlers after a disconnect, so they must be restored on reconnection.
-    await onDisconnect(playerRef).remove();
-    await set(playerRef, {
-      name,
-      joinedAt: serverTimestamp(),
+    await disconnectOperation.remove();
+
+    if (stopped || !connected) {
+      return;
+    }
+
+    await set(connectionRef, {
+      generation,
+      connectedAt: serverTimestamp(),
     });
 
-    // A successful set is acknowledged by Firebase. Read the record back so
-    // the Player UI only reports "You're in" after presence genuinely exists.
-    const snapshot = await get(playerRef);
-    const confirmed = snapshot.exists() && snapshot.val()?.name === name;
+    const snapshot = await get(connectionRef);
+    const confirmed =
+      snapshot.exists() && snapshot.val()?.generation === generation;
 
     if (!confirmed) {
-      throw new Error("Player presence was not confirmed");
+      throw new Error("Player connection was not confirmed");
     }
 
     const confirmations = pendingConfirmations;
@@ -75,14 +187,7 @@ export async function maintainPlayerPresence(
     confirmations.forEach(({ resolve }) => resolve());
   }
 
-  function rejectConfirmations(error) {
-    const confirmations = pendingConfirmations;
-    pendingConfirmations = [];
-    confirmations.forEach(({ reject }) => reject(error));
-  }
-
   function queuePresenceWrite() {
-    // A transient failed write must not poison future reconnect attempts.
     writeQueue = writeQueue.catch(() => {}).then(writePresence);
     writeQueue.catch(rejectConfirmations);
     return writeQueue;
@@ -101,19 +206,20 @@ export async function maintainPlayerPresence(
 
       if (connected) {
         queuePresenceWrite().catch(logTransientError);
+      } else {
+        onPresenceChange(false);
       }
     },
     rejectConfirmations,
   );
 
   stopPresenceObserver = onValue(
-    playerRef,
+    connectionRef,
     (snapshot) => {
-      const confirmed = snapshot.exists() && snapshot.val()?.name === name;
+      const confirmed =
+        snapshot.exists() && snapshot.val()?.generation === generation;
       onPresenceChange(confirmed);
 
-      // An old connection can finish its delayed onDisconnect after a new
-      // connection has already restored the same player record.
       if (!confirmed && connected) {
         queuePresenceWrite().catch(logTransientError);
       }
@@ -139,9 +245,7 @@ export async function maintainPlayerPresence(
   await confirmPresence();
 
   return {
-    refresh() {
-      return confirmPresence();
-    },
+    refresh: confirmPresence,
     stop,
   };
 }
@@ -149,9 +253,23 @@ export async function maintainPlayerPresence(
 export async function observePlayers(onChange) {
   await signIn();
 
-  return onValue(ref(database, playersPath), (snapshot) => {
-    const players = Object.entries(snapshot.val() ?? {})
-      .map(([id, player]) => ({ id, ...player }))
+  return onValue(ref(database, sessionPath), (snapshot) => {
+    const session = snapshot.val() ?? {};
+    const { generation, step } = validSessionState(session.state);
+    const connections = session.connections ?? {};
+    const players = Object.entries(session.players ?? {})
+      .map(([id, player]) => ({
+        id,
+        ...player,
+        name:
+          step > 1
+            ? session.lockedNames?.[id] ?? player.name
+            : player.name,
+        connected: Object.values(connections[id] ?? {}).some(
+          (connection) => connection?.generation === generation,
+        ),
+      }))
+      .filter((player) => player.generation === generation)
       .sort((a, b) => {
         const joinedOrder = (a.joinedAt ?? 0) - (b.joinedAt ?? 0);
         return joinedOrder || a.name.localeCompare(b.name);

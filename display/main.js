@@ -9,6 +9,7 @@ const waitingScreen = document.querySelector("#waiting-screen");
 const gameScreen = document.querySelector("#game-screen");
 const waitingPlayerCount = document.querySelector("#waiting-player-count");
 const gamePlayerCount = document.querySelector("#game-player-count");
+const playerNames = document.querySelector("#player-names");
 const qrCanvas = document.querySelector("#join-qr");
 const screen = document.querySelector("#screen");
 
@@ -27,6 +28,13 @@ observePlayers((players) => {
   const count = players.length;
   waitingPlayerCount.textContent = `${count} ${count === 1 ? "PLAYER" : "PLAYERS"}`;
   gamePlayerCount.textContent = `${count} ${count === 1 ? "player" : "players"}`;
+  playerNames.replaceChildren(
+    ...players.map((player) => {
+      const item = document.createElement("li");
+      item.textContent = player.name;
+      return item;
+    }),
+  );
 }).catch((error) => {
   console.error("Unable to observe players", error);
   waitingPlayerCount.textContent = "OFFLINE";
