@@ -37,20 +37,15 @@ form.addEventListener("submit", (event) => {
 });
 
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState !== "visible") {
-    return;
-  }
-
-  if (presence) {
-    presence.refresh().catch(showConnectionError);
-    return;
-  }
-
-  const name = loadPlayerName();
-  if (name) {
-    connect(name);
+  if (document.visibilityState === "visible") {
+    restorePresence();
   }
 });
+
+// Mobile browsers may restore a page from their back-forward cache without a
+// full reload. The online event covers the separate network-return lifecycle.
+window.addEventListener("pageshow", restorePresence);
+window.addEventListener("online", restorePresence);
 
 async function connect(name) {
   if (connectionPromise) {
@@ -75,6 +70,18 @@ async function connect(name) {
     });
 
   return connectionPromise;
+}
+
+function restorePresence() {
+  if (presence) {
+    presence.refresh().catch(showConnectionError);
+    return;
+  }
+
+  const name = loadPlayerName();
+  if (name) {
+    connect(name);
+  }
 }
 
 function showConnectionError(error) {
