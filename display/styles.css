@@ -110,6 +110,47 @@ body {
   padding: 4rem;
 }
 
+.pairing-screen {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background: #061b23;
+}
+
+.pairing-title-image {
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+}
+
+.now-playing {
+  position: absolute;
+  right: 3vw;
+  bottom: 4vh;
+  left: 3vw;
+  border: 0.25rem solid #ffe16a;
+  border-radius: 1.5rem;
+  padding: clamp(1.2rem, 3vw, 2.5rem);
+  background: rgb(4 25 32 / 90%);
+  box-shadow: 0 1.5rem 5rem rgb(0 0 0 / 45%);
+  text-align: center;
+}
+
+.now-playing p {
+  margin: 0 0 0.5rem;
+  color: #ffe16a;
+  font-size: clamp(1rem, 2vw, 1.8rem);
+  font-weight: 800;
+  letter-spacing: 0.18em;
+}
+
+.now-playing h1 {
+  margin: 0;
+  color: #fff6c9;
+  font-size: clamp(3rem, 7vw, 7rem);
+  letter-spacing: -0.04em;
+}
+
 .display-game-screen {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto auto;

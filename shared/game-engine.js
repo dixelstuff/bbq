@@ -65,12 +65,20 @@ export async function beginRound(roundId = partyGame.rounds[0].id) {
   const round = getRound(game.id, roundId);
   if (!round) throw new Error("Unknown round");
 
-  return transactSession((session, state) => {
+  let missingGroups = false;
+  const result = await transactSession((session, state) => {
     if (![phases.lobby, phases.intermission].includes(state.phase)) {
       return;
     }
 
     const players = currentPlayers(session, state);
+    if (
+      round.type === roundTypes.pairingPrototype &&
+      !Object.keys(session.grouping?.groups ?? {}).length
+    ) {
+      missingGroups = true;
+      return;
+    }
     const lockedNames = Object.fromEntries(
       players.map((player) => [player.id, player.name]),
     );
@@ -82,6 +90,7 @@ export async function beginRound(roundId = partyGame.rounds[0].id) {
         id: round.id,
         type: round.type,
         submissions: {},
+        startedAt: Date.now(),
       },
       state: {
         ...state,
@@ -93,6 +102,10 @@ export async function beginRound(roundId = partyGame.rounds[0].id) {
       },
     };
   });
+  if (!result.committed && missingGroups) {
+    throw new Error("Generate pairs before starting this round");
+  }
+  return result;
 }
 
 export async function closeAnswers() {
@@ -152,8 +165,27 @@ export async function showLeaderboard() {
   return setPhase(phases.reveal, phases.leaderboard);
 }
 
+export async function showPairingLeaderboard() {
+  return setPhase(phases.question, phases.leaderboard);
+}
+
 export async function finishRound() {
-  return setPhase(phases.leaderboard, phases.intermission);
+  return transactSession((session, state) => {
+    if (state.phase !== phases.leaderboard) return;
+    const historyId = `${session.round?.id ?? "round"}-${
+      session.round?.startedAt ?? Date.now()
+    }`;
+    return {
+      ...withPhase(session, state, phases.intermission),
+      roundHistory: {
+        ...(session.roundHistory ?? {}),
+        [historyId]: {
+          ...session.round,
+          finishedAt: Date.now(),
+        },
+      },
+    };
+  });
 }
 
 export async function submitAnswer(answer) {

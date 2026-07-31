@@ -3,6 +3,7 @@ import "./styles.css";
 import QRCode from "qrcode";
 import { observeGame, phases } from "../shared/game-engine.js";
 import { observePlayers } from "../shared/players.js";
+import { observeGrouping } from "../shared/grouping.js";
 import { releaseId } from "../shared/release.js";
 import { ensureSessionRelease } from "../shared/session-state.js";
 import { resolveDisplayMedia } from "./media.js";
@@ -18,6 +19,9 @@ const questionScreen = document.querySelector("#question-screen");
 const holdingScreen = document.querySelector("#holding-screen");
 const revealScreen = document.querySelector("#reveal-screen");
 const leaderboardScreen = document.querySelector("#leaderboard-screen");
+const pairingScreen = document.querySelector("#pairing-screen");
+const pairingTitleImage = document.querySelector("#pairing-title-image");
+const activePairNames = document.querySelector("#active-pair-names");
 const waitingPlayerCount = document.querySelector("#waiting-player-count");
 const cornerPlayerCounts = document.querySelectorAll(".corner-player-count");
 const playerNames = document.querySelector("#player-names");
@@ -34,6 +38,8 @@ const revealAnswers = document.querySelector("#reveal-answers");
 const leaderboard = document.querySelector("#leaderboard");
 
 let players = [];
+let gameSnapshot;
+let groupingSnapshot = { groups: [] };
 
 await ensureSessionRelease(releaseId);
 
@@ -56,7 +62,17 @@ observePlayers((nextPlayers) => {
   waitingPlayerCount.textContent = "OFFLINE";
 });
 
-observeGame(renderGame).catch((error) => {
+observeGrouping((grouping) => {
+  groupingSnapshot = grouping;
+  renderActivePair();
+}).catch((error) => {
+  console.error("Unable to observe groups", error);
+});
+
+observeGame((snapshot) => {
+  gameSnapshot = snapshot;
+  renderGame(snapshot);
+}).catch((error) => {
   console.error("Unable to observe game", error);
   showOnly(holdingScreen);
   holdingText.textContent = "OFFLINE";
@@ -86,6 +102,19 @@ function renderGame(snapshot) {
   }
 
   if (state.phase === phases.question && definition) {
+    if (definition.type === roundTypes.pairingPrototype) {
+      showOnly(pairingScreen);
+      const titleMedia = resolveDisplayMedia(
+        mediaForAudience(definition, "display", "title"),
+      );
+      pairingTitleImage.hidden = !titleMedia;
+      if (titleMedia) {
+        pairingTitleImage.src = titleMedia.src;
+        pairingTitleImage.alt = titleMedia.alt ?? "";
+      }
+      renderActivePair();
+      return;
+    }
     showOnly(questionScreen);
     const media = resolveDisplayMedia(
       mediaForAudience(definition, "display"),
@@ -168,9 +197,17 @@ function showOnly(activeScreen) {
     holdingScreen,
     revealScreen,
     leaderboardScreen,
+    pairingScreen,
   ].forEach((screen) => {
     screen.hidden = screen !== activeScreen;
   });
+}
+
+function renderActivePair() {
+  const names = groupingSnapshot.activeGroup?.members
+    ?.map((member) => member.name)
+    .join(" + ");
+  activePairNames.textContent = names || "WAITING FOR PAIRS";
 }
 
 function escapeHtml(value) {

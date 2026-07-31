@@ -1,6 +1,7 @@
 export const roundTypes = {
   fastestFreeText: "fastest-free-text",
   closestWins: "closest-wins",
+  pairingPrototype: "pairing-prototype",
   manualScore: "manual-score",
 };
 
@@ -15,8 +16,8 @@ export const mediaVisibility = {
   both: "both",
 };
 
-export function mediaForAudience(round, audience) {
-  const media = round?.media;
+export function mediaForAudience(round, audience, slot = "question") {
+  const media = round?.media?.[slot] ?? round?.media;
   if (!media) return undefined;
   const visibility = media.visibility ?? mediaVisibility.display;
   return visibility === mediaVisibility.both || visibility === audience

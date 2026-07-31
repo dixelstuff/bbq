@@ -3,6 +3,7 @@ import "../shared/styles.css";
 import { restartDatabaseConnection } from "../shared/firebase.js";
 import { observeGame, phases, submitAnswer } from "../shared/game-engine.js";
 import { observeHostConnected } from "../shared/host-presence.js";
+import { observeGrouping } from "../shared/grouping.js";
 import {
   getJoinedPlayer,
   maintainPlayerPresence,
@@ -55,6 +56,10 @@ const answerInput = document.querySelector("#answer");
 const answerButton = document.querySelector("#answer-submit");
 const answerStatus = document.querySelector("#answer-status");
 const playerResult = document.querySelector("#player-result");
+const pairView = document.querySelector("#pair-view");
+const pairStatus = document.querySelector("#pair-status");
+const pairMembers = document.querySelector("#pair-members");
+const pairWaiting = document.querySelector("#pair-waiting");
 
 let currentState = {
   step: loadNumber(playerStepKey, 1),
@@ -79,6 +84,7 @@ let stopGameObserver;
 let gameRetryTimer;
 let hostConnected = false;
 let hostStatusKnown = false;
+let groupingSnapshot = { groups: [] };
 
 debugPanel.hidden = !import.meta.env.DEV;
 screen.textContent = `Waiting — screen ${currentState.step}`;
@@ -88,6 +94,7 @@ updateDebugPanel();
 startStateObserver();
 startGameObserver();
 startHostObserver();
+startGroupingObserver();
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -303,6 +310,15 @@ function startHostObserver() {
     console.error("[BBQ player] Unable to observe Host presence.", error);
     hostStatusKnown = true;
     updatePlayerMode();
+  });
+}
+
+function startGroupingObserver() {
+  observeGrouping((grouping) => {
+    groupingSnapshot = grouping;
+    renderPlayerGame();
+  }).catch((error) => {
+    console.error("[BBQ player] Unable to observe groups.", error);
   });
 }
 
@@ -605,8 +621,28 @@ function renderPlayerGame() {
   waitingView.hidden = true;
   questionView.hidden = true;
   playerResult.hidden = true;
+  pairView.hidden = true;
 
   if (!joined || currentState.step === 1) {
+    return;
+  }
+
+  if (
+    definition?.type === roundTypes.pairingPrototype &&
+    phase === phases.question
+  ) {
+    const playerGroup = groupingSnapshot.groups?.find((group) =>
+      group.memberIds?.includes(playerId),
+    );
+    pairView.hidden = false;
+    pairMembers.textContent =
+      playerGroup?.members.map((member) => member.name).join(" + ") ??
+      "PAIR NOT ASSIGNED";
+    const active = playerGroup?.id === groupingSnapshot.activeGroupId;
+    pairStatus.textContent = active ? "YOU’RE UP" : "YOUR PAIR";
+    pairWaiting.textContent = active
+      ? "Head to the playing area!"
+      : "Waiting for your turn…";
     return;
   }
 

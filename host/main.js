@@ -10,6 +10,7 @@ import {
   overrideSubmissionPoints,
   phases,
   scoreAndReveal,
+  showPairingLeaderboard,
   showLeaderboard,
 } from "../shared/game-engine.js";
 import {
@@ -17,6 +18,15 @@ import {
   partyGame,
 } from "../shared/games/party-game.js";
 import { maintainHostPresence } from "../shared/host-presence.js";
+import {
+  awardGroupPoints,
+  generateGrouping,
+  groupingModes,
+  movePlayerToGroup,
+  observeGrouping,
+  participationModes,
+  setActiveGroup,
+} from "../shared/grouping.js";
 import { observePlayers } from "../shared/players.js";
 import { releaseId } from "../shared/release.js";
 import { roundTypes } from "../shared/round-types.js";
@@ -39,6 +49,7 @@ const cueHeading = document.querySelector("#cue");
 const gamePanel = document.querySelector("#host-game");
 const questionText = document.querySelector("#host-question");
 const correctAnswer = document.querySelector("#correct-answer");
+const correctAnswerRow = document.querySelector("#correct-answer-row");
 const notes = document.querySelector("#notes");
 const roundType = document.querySelector("#round-type");
 const submissionsHeading = document.querySelector("#submissions-heading");
@@ -49,9 +60,13 @@ const markAllCorrectButton = document.querySelector("#mark-all-correct");
 const markAllIncorrectButton = document.querySelector("#mark-all-incorrect");
 const roundSelection = document.querySelector("#round-selection");
 const roundSelect = document.querySelector("#round-select");
+const groupingPanel = document.querySelector("#grouping-panel");
+const hostGroups = document.querySelector("#host-groups");
+const groupAssignments = document.querySelector("#group-assignments");
 
 let gameSnapshot;
 let latestPlayers = [];
+let latestGrouping = { groups: [] };
 
 await ensureSessionRelease(releaseId);
 
@@ -73,6 +88,13 @@ observePlayers(renderPlayers).catch((error) => {
   joinedCount.textContent = "Unable to connect to Firebase.";
 });
 
+observeGrouping((grouping) => {
+  latestGrouping = grouping;
+  renderGrouping();
+}).catch((error) => {
+  console.error("[BBQ host] Unable to observe groups.", error);
+});
+
 observeGame((snapshot) => {
   gameSnapshot = snapshot;
   renderGame(snapshot);
@@ -84,9 +106,13 @@ observeGame((snapshot) => {
 
 nextButton.addEventListener("click", async () => {
   const phase = gameSnapshot?.state.phase;
+  const pairingRound =
+    gameSnapshot?.definition?.type === roundTypes.pairingPrototype;
   const action = {
     [phases.lobby]: () => beginRound(roundSelect.value),
-    [phases.question]: closeAnswers,
+    [phases.question]: pairingRound
+      ? showPairingLeaderboard
+      : closeAnswers,
     [phases.marking]: scoreAndReveal,
     [phases.reveal]: showLeaderboard,
     [phases.leaderboard]: finishRound,
@@ -95,6 +121,48 @@ nextButton.addEventListener("click", async () => {
 
   if (action) {
     await runAction(nextButton, action);
+  }
+});
+
+document.querySelector("#generate-pairs").addEventListener("click", (event) =>
+  runAction(event.currentTarget, () =>
+    generateGrouping(groupingModes.pairs, participationModes.turnBased),
+  ),
+);
+
+document.querySelector("#previous-group").addEventListener("click", () =>
+  cycleActiveGroup(-1),
+);
+
+document.querySelector("#next-group").addEventListener("click", () =>
+  cycleActiveGroup(1),
+);
+
+hostGroups.addEventListener("click", async (event) => {
+  const activeButton = event.target.closest("button[data-active-group]");
+  if (activeButton) {
+    await runAction(activeButton, () =>
+      setActiveGroup(activeButton.dataset.activeGroup),
+    );
+    return;
+  }
+  const awardButton = event.target.closest("button[data-award-group]");
+  if (awardButton) {
+    const points = awardButton
+      .closest(".host-group")
+      .querySelector("input[data-group-points]").value;
+    await runAction(awardButton, () =>
+      awardGroupPoints(awardButton.dataset.awardGroup, points),
+    );
+  }
+});
+
+groupAssignments.addEventListener("change", async (event) => {
+  const select = event.target.closest("select[data-group-player]");
+  if (select) {
+    await runAction(select, () =>
+      movePlayerToGroup(select.dataset.groupPlayer, select.value),
+    );
   }
 });
 
@@ -155,6 +223,7 @@ function renderPlayers(players) {
   );
   disconnectedWarning.hidden = disconnected.length === 0;
   renderSimulatorPlayers();
+  renderGrouping();
 }
 
 function renderGame(snapshot) {
@@ -167,13 +236,16 @@ function renderGame(snapshot) {
   bulkActions.hidden =
     state.phase !== phases.marking ||
     definition?.type !== roundTypes.fastestFreeText;
-  submissionsHeading.hidden = !definition;
-  submissionsList.hidden = !definition;
-  emptySubmissions.hidden = !definition || submissions.length > 0;
+  const answerRound =
+    definition && definition.type !== roundTypes.pairingPrototype;
+  submissionsHeading.hidden = !answerRound;
+  submissionsList.hidden = !answerRound;
+  emptySubmissions.hidden = !answerRound || submissions.length > 0;
 
   if (definition) {
-    questionText.textContent = definition.question;
-    correctAnswer.textContent = definition.answer;
+    questionText.textContent = definition.question ?? definition.title;
+    correctAnswerRow.hidden = !definition.answer;
+    correctAnswer.textContent = definition.answer ?? "";
     notes.textContent = definition.notes;
     roundType.textContent = definition.typeLabel;
     renderSubmissions(submissions, state.phase);
@@ -181,10 +253,16 @@ function renderGame(snapshot) {
   roundSelection.hidden = ![phases.lobby, phases.intermission].includes(
     state.phase,
   );
+  groupingPanel.hidden = !(
+    state.phase === phases.lobby ||
+    state.phase === phases.intermission ||
+    definition?.type === roundTypes.pairingPrototype
+  );
 
   const nextLabels = {
     [phases.lobby]: "START GAME",
-    [phases.question]: "CLOSE ANSWERS",
+    [phases.question]:
+      definition?.flow?.question?.hostLabel ?? "CLOSE ANSWERS",
     [phases.marking]: "REVEAL RESULTS",
     [phases.reveal]: "SHOW LEADERBOARD",
     [phases.leaderboard]: "FINISH",
@@ -192,7 +270,68 @@ function renderGame(snapshot) {
   };
 
   nextButton.textContent = nextLabels[state.phase] ?? "NEXT";
-  nextButton.disabled = state.phase === phases.intermission;
+  nextButton.disabled = false;
+}
+
+function renderGrouping() {
+  const groups = latestGrouping.groups ?? [];
+  hostGroups.replaceChildren(
+    ...groups.map((group) => {
+      const card = document.createElement("article");
+      const active = group.id === latestGrouping.activeGroupId;
+      card.className = `host-group${active ? " active" : ""}`;
+      card.innerHTML = `<div><strong>${escapeHtml(
+        group.name,
+      )}${active ? " · ACTIVE" : ""}</strong><span>${escapeHtml(
+        group.members.map((member) => member.name).join(" + ") || "Empty",
+      )}</span></div><div class="group-score-controls"><button class="secondary small-button" type="button" data-active-group="${escapeHtml(
+        group.id,
+      )}">MAKE ACTIVE</button><input type="number" value="1" data-group-points aria-label="Points for ${escapeHtml(
+        group.name,
+      )}"><button type="button" data-award-group="${escapeHtml(
+        group.id,
+      )}">AWARD</button></div>`;
+      return card;
+    }),
+  );
+
+  groupAssignments.replaceChildren(
+    ...latestPlayers.map((player) => {
+      const label = document.createElement("label");
+      const currentGroup = groups.find((group) =>
+        group.memberIds?.includes(player.id),
+      );
+      const select = document.createElement("select");
+      const name = document.createElement("span");
+      name.textContent = player.name;
+      select.dataset.groupPlayer = player.id;
+      select.setAttribute("aria-label", `Group for ${player.name}`);
+      select.replaceChildren(
+        ...groups.map((group) => {
+          const option = document.createElement("option");
+          option.value = group.id;
+          option.textContent = group.name;
+          option.selected = group.id === currentGroup?.id;
+          return option;
+        }),
+      );
+      select.disabled = groups.length === 0;
+      label.append(name, select);
+      return label;
+    }),
+  );
+}
+
+function cycleActiveGroup(direction) {
+  const groups = latestGrouping.groups ?? [];
+  if (!groups.length) return;
+  const current = groups.findIndex(
+    (group) => group.id === latestGrouping.activeGroupId,
+  );
+  const next = (Math.max(current, 0) + direction + groups.length) % groups.length;
+  setActiveGroup(groups[next].id).catch((error) => {
+    console.error("[BBQ host] Unable to change the active group.", error);
+  });
 }
 
 const simulatorPanel = document.querySelector("#simulator-panel");
@@ -362,9 +501,7 @@ async function runAction(button, action) {
     actionStatus.dataset.error = "true";
     actionStatus.textContent = error.message || "Couldn’t update the game.";
   } finally {
-    button.disabled =
-      button === nextButton &&
-      gameSnapshot?.state.phase === phases.intermission;
+    button.disabled = false;
   }
 }
 

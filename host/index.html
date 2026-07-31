@@ -50,6 +50,23 @@
         <select id="round-select"></select>
       </section>
 
+      <section id="grouping-panel" class="grouping-panel stack">
+        <h2>Groups</h2>
+        <div class="grouping-actions">
+          <button id="generate-pairs" class="secondary" type="button">
+            RANDOM PAIRS
+          </button>
+          <button id="previous-group" class="secondary" type="button">
+            PREVIOUS PAIR
+          </button>
+          <button id="next-group" class="secondary" type="button">
+            NEXT PAIR
+          </button>
+        </div>
+        <div id="host-groups" class="host-groups"></div>
+        <div id="group-assignments" class="group-assignments"></div>
+      </section>
+
       <details id="development-tools" class="development-tools">
         <summary>Development</summary>
         <section id="simulator-panel" class="simulator-panel stack">
@@ -74,7 +91,7 @@
 
       <section id="host-game" class="host-game stack" hidden>
         <h2 id="host-question"></h2>
-        <p><strong>Correct answer:</strong> <span id="correct-answer"></span></p>
+        <p id="correct-answer-row"><strong>Correct answer:</strong> <span id="correct-answer"></span></p>
         <p id="notes" class="host-notes"></p>
         <p id="round-type" class="eyebrow"></p>
       </section>

@@ -76,6 +76,19 @@ The sample rounds are `FASTEST FREE TEXT` and `CLOSEST WINS`. Shared media is
 Display-only by default and is resolved from the local Display media library,
 so the koala asset is not included in the public Player/Host deployment.
 
+## Bespoke rounds and grouping
+
+Rounds may own custom flow and interface behavior while consuming shared
+session services. The Spelling Bee pairing prototype lives under
+`shared/rounds/spelling-bee/`, with its local Display media adapter under
+`display/rounds/spelling-bee/`.
+
+The grouping service is independent from rounds and supports individuals,
+pairs, groups of three, two teams and custom groups. A grouping can be random,
+manually edited, reused or regenerated. Turn-based rounds share an active group
+through Firebase. Group awards credit every current member and are retained in
+round history before the next round starts.
+
 Every production build and local Display build carries its Git commit as a
 release identifier. The first updated Host or Display to connect resets the
 Firebase session once for that release, preventing an old in-progress round

@@ -430,6 +430,90 @@ dialog::backdrop {
   font-size: 0.78rem;
 }
 
+.grouping-panel {
+  border: 1px solid #cfccc4;
+  border-radius: 1rem;
+  padding: 1rem;
+  background: #fff;
+}
+
+.grouping-actions,
+.group-score-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.grouping-actions button,
+.group-score-controls button {
+  width: auto;
+  min-height: 2.6rem;
+}
+
+.host-groups,
+.group-assignments {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.host-group {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.75rem;
+  align-items: center;
+  border: 1px solid #dedbd3;
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+}
+
+.host-group.active {
+  border-color: #287441;
+  background: #eef8f0;
+}
+
+.host-group > div:first-child {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.host-group span {
+  color: #6b6962;
+  font-size: 0.85rem;
+}
+
+.group-score-controls input {
+  width: 4.5rem;
+  min-height: 2.6rem;
+}
+
+.group-assignments {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.group-assignments label {
+  display: grid;
+  grid-template-columns: 1fr minmax(8rem, auto);
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.group-assignments select {
+  min-height: 2.6rem;
+}
+
+.pair-view {
+  text-align: center;
+}
+
+.pair-view h1 {
+  font-size: clamp(2.8rem, 10vw, 5rem);
+}
+
+.pair-view p:last-child {
+  color: #6b6962;
+  font-size: 1.2rem;
+}
+
 .host-game-image {
   max-height: 18rem;
 }
