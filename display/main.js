@@ -125,6 +125,11 @@ function renderGame(snapshot) {
     return;
   }
 
+  if (state.phase === phases.opening && definition) {
+    renderArtwork(definition, displayModes.artwork);
+    return;
+  }
+
   if (state.phase === phases.question && definition) {
     if (definition.type === roundTypes.charades && round?.timer) {
       renderTimer(round.timer);
@@ -158,7 +163,7 @@ function renderGame(snapshot) {
     return;
   }
 
-  if (state.phase === phases.marking) {
+  if ([phases.marking, phases.voting].includes(state.phase)) {
     if (definition?.media?.title) {
       renderArtwork(definition, displayModes.artwork);
     } else {
@@ -176,11 +181,18 @@ function renderGame(snapshot) {
     showOnly(revealScreen);
     revealRoundType.textContent = definition.typeLabel;
     revealQuestion.textContent = definition.question;
-    revealCorrectAnswer.textContent = `CORRECT ANSWER: ${
+    const revealedAnswer =
       definition.type === roundTypes.closestWins
         ? formatNumericAnswer(definition.correctValue)
-        : definition.answer
-    }`;
+        : definition.type === roundTypes.myDefinition
+          ? round?.result?.definition
+          : definition.answer;
+    revealCorrectAnswer.textContent =
+      definition.type === roundTypes.bestFreeText
+        ? "HOST'S PICKS"
+        : definition.type === roundTypes.myDefinition
+          ? `${definition.word}: ${revealedAnswer ?? ""}`
+          : `CORRECT ANSWER: ${revealedAnswer ?? ""}`;
     revealAnswers.replaceChildren(
       ...submissions.map((submission) => {
         const item = document.createElement("li");
@@ -192,6 +204,20 @@ function renderGame(snapshot) {
           )}</strong><span>${escapeHtml(submission.answer)}</span><strong>+${
             submission.points ?? 0
           }</strong>`;
+        } else if (definition.type === roundTypes.bestFreeText) {
+          item.innerHTML = `<strong>${escapeHtml(
+            submission.playerName,
+          )}</strong><span>${escapeHtml(submission.answer)}</span><span>+${
+            submission.points ?? 0
+          }</span>`;
+        } else if (definition.type === roundTypes.myDefinition) {
+          const points =
+            round?.definitionScores?.[submission.playerId] ?? 0;
+          item.innerHTML = `<strong>${escapeHtml(
+            submission.playerName,
+          )}</strong><span>${escapeHtml(
+            submission.answer,
+          )}</span><span>+${points}</span>`;
         } else {
           item.innerHTML = `<strong>${escapeHtml(
             submission.playerName,

@@ -1,5 +1,6 @@
 import { spellingBeeDisplayMedia } from "./rounds/spelling-bee/media.js";
 import { charadesDisplayMedia } from "./rounds/charades/media.js";
+import { demoNightDisplayMedia } from "./rounds/demo-night/media.js";
 
 const mediaLibrary = {
   "placeholder-animal": {
@@ -8,6 +9,7 @@ const mediaLibrary = {
   },
   ...spellingBeeDisplayMedia,
   ...charadesDisplayMedia,
+  ...demoNightDisplayMedia,
 };
 
 export function resolveDisplayMedia(media) {

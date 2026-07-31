@@ -102,7 +102,7 @@
       <section id="host-game" class="host-game stack" hidden>
         <h2 id="host-question"></h2>
         <p id="correct-answer-row"><strong>Correct answer:</strong> <span id="correct-answer"></span></p>
-        <p id="notes" class="host-notes"></p>
+        <div id="notes" class="host-notes"></div>
         <p id="round-type" class="eyebrow"></p>
       </section>
 
@@ -115,6 +115,7 @@
           <p><strong>Pronunciation:</strong> <span id="spelling-pronunciation"></span></p>
           <p><strong>Definition:</strong> <span id="spelling-definition"></span></p>
           <p><strong>Example:</strong> <span id="spelling-example"></span></p>
+          <p><strong>Host note:</strong> <span id="spelling-notes"></span></p>
         </div>
         <div id="spelling-marking" class="spelling-marking">
           <button id="spelling-correct" class="mark-correct" type="button">
@@ -131,9 +132,20 @@
           <p class="eyebrow">Active group</p>
           <h2 id="charades-group">No group selected</h2>
         </div>
+        <div class="charades-stats">
+          <span>Attempt <strong id="charades-attempt">1</strong></span>
+          <span>Correct <strong id="charades-correct-count">0</strong></span>
+          <span>Skipped <strong id="charades-skipped-count">0</strong></span>
+          <span>Time <strong id="charades-time">60</strong></span>
+        </div>
         <div class="charades-prompt-card">
           <p class="eyebrow">Secret prompt — Host only</p>
+          <p id="charades-category" class="charades-category"></p>
           <h2 id="charades-prompt"></h2>
+        </div>
+        <div class="charades-attempt-controls">
+          <button id="charades-correct" class="mark-correct" type="button">✓ CORRECT</button>
+          <button id="charades-skip" class="secondary" type="button">SKIP</button>
         </div>
         <div class="charades-navigation">
           <button id="charades-previous-group" class="secondary" type="button">PREVIOUS GROUP</button>

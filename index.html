@@ -35,11 +35,20 @@
         <p id="player-round-type" class="eyebrow"></p>
         <h1 id="question-text"></h1>
         <form id="answer-form" class="stack">
-          <label for="answer">Your answer</label>
-          <input id="answer" name="answer" maxlength="120" autocomplete="off" />
+          <div id="answer-text-control" class="stack">
+            <label for="answer">Your answer</label>
+            <input id="answer" name="answer" maxlength="240" autocomplete="off" />
+          </div>
+          <div id="choice-options" class="choice-options"></div>
           <button id="answer-submit" type="submit">SUBMIT</button>
           <p id="answer-status" class="status" role="status"></p>
         </form>
+      </section>
+      <section id="voting-view" class="player-question stack" hidden>
+        <p class="eyebrow">MY DEFINITION</p>
+        <h1>Which definition is real?</h1>
+        <div id="definition-options" class="definition-options"></div>
+        <p id="vote-status" class="status" role="status"></p>
       </section>
       <section id="pair-view" class="pair-view stack" hidden>
         <p id="pair-status" class="eyebrow">YOUR GROUP</p>

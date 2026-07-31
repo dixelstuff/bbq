@@ -4,10 +4,14 @@ import {
   beginRound,
   advanceSpelling,
   closeAnswers,
+  closeDefinitionVoting,
   finishRound,
   markAllRemaining,
   markSpelling,
+  openDefinitionVoting,
+  openRoundQuestion,
   moveCharadesPrompt,
+  recordCharadesAttempt,
   markSubmission,
   observeGame,
   overrideSubmissionPoints,
@@ -19,6 +23,7 @@ import {
   startRoundTimer,
   stopRoundTimer,
   setRoundDisplayOverlay,
+  setSubmissionBonus,
 } from "../shared/game-engine.js";
 import {
   getRounds,
@@ -45,6 +50,11 @@ import {
 } from "../shared/session-state.js";
 import { spellingBeeWords } from "./rounds/spelling-bee/content.js";
 import { charadesPrompts } from "./rounds/charades/content.js";
+import {
+  definitionContent,
+  getHostContent,
+} from "./rounds/demo-night/content.js";
+import { remainingTimerSeconds } from "../shared/presentation.js";
 
 const nextButton = document.querySelector("#next");
 const joinedCount = document.querySelector("#joined-count");
@@ -80,6 +90,7 @@ const spellingWord = document.querySelector("#spelling-word");
 const spellingPronunciation = document.querySelector("#spelling-pronunciation");
 const spellingDefinition = document.querySelector("#spelling-definition");
 const spellingExample = document.querySelector("#spelling-example");
+const spellingNotes = document.querySelector("#spelling-notes");
 const spellingMarking = document.querySelector("#spelling-marking");
 const spellingCorrect = document.querySelector("#spelling-correct");
 const spellingIncorrect = document.querySelector("#spelling-incorrect");
@@ -91,6 +102,13 @@ const charadesStartTimer = document.querySelector("#charades-start-timer");
 const charadesStopTimer = document.querySelector("#charades-stop-timer");
 const charadesOverlay = document.querySelector("#charades-overlay");
 const charadesScoreButtons = document.querySelector("#charades-score-buttons");
+const charadesAttempt = document.querySelector("#charades-attempt");
+const charadesCorrectCount = document.querySelector("#charades-correct-count");
+const charadesSkippedCount = document.querySelector("#charades-skipped-count");
+const charadesTime = document.querySelector("#charades-time");
+const charadesCategory = document.querySelector("#charades-category");
+const charadesCorrectButton = document.querySelector("#charades-correct");
+const charadesSkipButton = document.querySelector("#charades-skip");
 
 let gameSnapshot;
 let latestPlayers = [];
@@ -104,14 +122,7 @@ if (document.documentElement.dataset.hostAccess !== "granted") {
 
 await ensureSessionRelease(releaseId);
 
-roundSelect.replaceChildren(
-  ...getRounds().map((round) => {
-    const option = document.createElement("option");
-    option.value = round.id;
-    option.textContent = `${round.typeLabel} — ${round.title}`;
-    return option;
-  }),
-);
+renderRoundOptions();
 
 maintainHostPresence().catch((error) => {
   console.error("[BBQ host] Unable to register Host presence.", error);
@@ -144,6 +155,15 @@ observeGame((snapshot) => {
   phaseLabel.textContent = "Unable to connect to Firebase.";
 });
 
+setInterval(() => {
+  if (
+    gameSnapshot?.definition?.type === roundTypes.charades &&
+    gameSnapshot?.state.phase === phases.question
+  ) {
+    renderCharadesHost(gameSnapshot.state, gameSnapshot.round);
+  }
+}, 250);
+
 nextButton.addEventListener("click", async () => {
   const phase = gameSnapshot?.state.phase;
   const pairingRound =
@@ -152,8 +172,11 @@ nextButton.addEventListener("click", async () => {
     gameSnapshot?.definition?.type === roundTypes.spellingBee;
   const charadesRound =
     gameSnapshot?.definition?.type === roundTypes.charades;
+  const definitionRound =
+    gameSnapshot?.definition?.type === roundTypes.myDefinition;
   const action = {
     [phases.lobby]: () => beginRound(roundSelect.value),
+    [phases.opening]: openRoundQuestion,
     [phases.question]: spellingRound
       ? null
       : charadesRound
@@ -161,7 +184,13 @@ nextButton.addEventListener("click", async () => {
       : pairingRound
       ? showPairingLeaderboard
       : closeAnswers,
-    [phases.marking]: scoreAndReveal,
+    [phases.marking]: definitionRound
+      ? () =>
+          openDefinitionVoting(
+            definitionContent[gameSnapshot?.definition?.word]?.definition,
+          )
+      : scoreAndReveal,
+    [phases.voting]: closeDefinitionVoting,
     [phases.reveal]: spellingRound ? advanceSpelling : showLeaderboard,
     [phases.leaderboard]: finishRound,
     [phases.intermission]: () => beginRound(roundSelect.value),
@@ -219,6 +248,12 @@ charadesStartTimer.addEventListener("click", () =>
 );
 charadesStopTimer.addEventListener("click", () =>
   runAction(charadesStopTimer, stopRoundTimer),
+);
+charadesCorrectButton.addEventListener("click", () =>
+  runAction(charadesCorrectButton, () => recordCharadesAttempt("correct")),
+);
+charadesSkipButton.addEventListener("click", () =>
+  runAction(charadesSkipButton, () => recordCharadesAttempt("skipped")),
 );
 charadesOverlay.addEventListener("click", () =>
   runAction(charadesOverlay, () =>
@@ -282,6 +317,26 @@ groupAssignments.addEventListener("change", async (event) => {
 });
 
 submissionsList.addEventListener("click", async (event) => {
+  const pointsButton = event.target.closest("button[data-manual-points]");
+  if (pointsButton) {
+    await runAction(pointsButton, () =>
+      overrideSubmissionPoints(
+        pointsButton.dataset.playerId,
+        pointsButton.dataset.manualPoints,
+      ),
+    );
+    return;
+  }
+  const bonusButton = event.target.closest("button[data-bonus-player]");
+  if (bonusButton) {
+    await runAction(bonusButton, () =>
+      setSubmissionBonus(
+        bonusButton.dataset.bonusPlayer,
+        Number(bonusButton.dataset.currentBonus) ? 0 : 1,
+      ),
+    );
+    return;
+  }
   const button = event.target.closest("button[data-player-id]");
   if (!button) {
     return;
@@ -369,12 +424,16 @@ function renderGame(snapshot) {
   emptySubmissions.hidden = !answerRound || submissions.length > 0;
 
   if (definition) {
+    const hostContent = getHostContent(definition.id);
     questionText.textContent = definition.question ?? definition.title;
-    correctAnswerRow.hidden = !definition.answer;
-    correctAnswer.textContent = definition.answer ?? "";
-    notes.textContent = definition.notes;
+    correctAnswerRow.hidden = !(hostContent?.answer ?? definition.answer);
+    correctAnswer.textContent = hostContent?.answer ?? definition.answer ?? "";
+    notes.replaceChildren(...hostNoteBlocks(hostContent, definition.notes));
     roundType.textContent = definition.typeLabel;
     renderSubmissions(submissions, state.phase);
+  }
+  if (state.phase === phases.intermission && state.nextRoundId) {
+    roundSelect.value = state.nextRoundId;
   }
   roundSelection.hidden = ![phases.lobby, phases.intermission].includes(
     state.phase,
@@ -397,13 +456,18 @@ function renderGame(snapshot) {
 
   const nextLabels = {
     [phases.lobby]: "START GAME",
+    [phases.opening]: "OPEN QUESTION",
     [phases.question]:
       isSpelling
         ? "MARK THE SPELLING"
         : isCharades
           ? "SHOW LEADERBOARD"
         : definition?.flow?.question?.hostLabel ?? "CLOSE ANSWERS",
-    [phases.marking]: "REVEAL RESULTS",
+    [phases.marking]:
+      definition?.type === roundTypes.myDefinition
+        ? "OPEN VOTING"
+        : "REVEAL RESULTS",
+    [phases.voting]: "CLOSE VOTING & REVEAL",
     [phases.reveal]: isSpelling ? "NEXT PLAYER" : "SHOW LEADERBOARD",
     [phases.leaderboard]: "FINISH",
     [phases.intermission]: "START SELECTED ROUND",
@@ -420,7 +484,14 @@ function renderCharadesHost(state, round) {
     "No group selected";
   const prompt =
     charadesPrompts[(round?.promptIndex ?? 0) % charadesPrompts.length];
-  charadesPrompt.textContent = prompt;
+  charadesPrompt.textContent = prompt?.prompt ?? "No prompt configured";
+  charadesCategory.textContent = prompt?.category ?? "";
+  charadesAttempt.textContent = String(round?.attemptNumber ?? 1);
+  charadesCorrectCount.textContent = String(round?.correctGuesses ?? 0);
+  charadesSkippedCount.textContent = String(round?.skippedPrompts ?? 0);
+  charadesTime.textContent = String(
+    remainingTimerSeconds(round?.timer) ?? Number(charadesSeconds.value),
+  );
   charadesOverlay.textContent =
     round?.displayMode === "overlay"
       ? "HIDE ACTIVE OVERLAY"
@@ -431,6 +502,8 @@ function renderCharadesHost(state, round) {
   charadesScoreButtons.querySelectorAll("button").forEach((button) => {
     button.disabled = state.phase !== phases.question || !active;
   });
+  charadesCorrectButton.disabled = state.phase !== phases.question;
+  charadesSkipButton.disabled = state.phase !== phases.question;
 }
 
 function renderSpellingHost(state, round) {
@@ -452,6 +525,7 @@ function renderSpellingHost(state, round) {
   spellingPronunciation.textContent = item?.pronunciation ?? "";
   spellingDefinition.textContent = item?.definition ?? "";
   spellingExample.textContent = item?.example ?? "";
+  spellingNotes.textContent = item?.notes ?? "";
   spellingMarking.hidden = state.phase !== phases.question;
 }
 
@@ -648,6 +722,35 @@ function renderSubmissions(submissions, phase) {
         points.dataset.pointsPlayer = submission.playerId;
         points.setAttribute("aria-label", `Points for ${submission.playerName}`);
         controls.append(check, points);
+      } else if (
+        phase === phases.marking &&
+        definition?.type === roundTypes.bestFreeText
+      ) {
+        for (let points = 0; points <= 5; points += 1) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "small-button";
+          button.dataset.playerId = submission.playerId;
+          button.dataset.manualPoints = String(points);
+          button.textContent = String(points);
+          button.setAttribute(
+            "aria-label",
+            `Award ${points} points to ${submission.playerName}`,
+          );
+          controls.append(button);
+        }
+      } else if (
+        phase === phases.marking &&
+        definition?.type === roundTypes.myDefinition
+      ) {
+        controls.textContent = "Ready for the vote";
+      } else if (
+        phase === phases.marking &&
+        definition?.type === roundTypes.mcq
+      ) {
+        controls.textContent = `${submission.status} · ${
+          submission.points ?? 0
+        } pts`;
       } else if (phase === phases.marking) {
         if (submission.status !== "pending") {
           const status = document.createElement("strong");
@@ -660,6 +763,20 @@ function renderSubmissions(submissions, phase) {
           markingButton(submission.playerId, "correct", "✓ Correct"),
           markingButton(submission.playerId, "incorrect", "✕ Incorrect"),
         );
+        if (
+          definition?.type === roundTypes.fastestFreeText &&
+          definition?.id === "fastest-shakespeare"
+        ) {
+          const bonus = document.createElement("button");
+          bonus.type = "button";
+          bonus.className = "small-button secondary";
+          bonus.dataset.bonusPlayer = submission.playerId;
+          bonus.dataset.currentBonus = String(submission.bonusPoints ?? 0);
+          bonus.textContent = submission.bonusPoints
+            ? "REMOVE UNIQUE +1"
+            : "UNIQUE +1";
+          controls.append(bonus);
+        }
       } else {
         controls.textContent =
           submission.status === "pending"
@@ -692,12 +809,60 @@ function phaseTitle(phase, definition) {
   }
   return {
     [phases.lobby]: "Lobby",
+    [phases.opening]: "Round opening",
     [phases.question]: "Accepting answers",
     [phases.marking]: "Mark answers",
+    [phases.voting]: "Definition voting",
     [phases.reveal]: "Reveal",
     [phases.leaderboard]: "Leaderboard",
     [phases.intermission]: "Waiting",
   }[phase];
+}
+
+function renderRoundOptions() {
+  const sections = new Map();
+  for (const round of getRounds()) {
+    const section = round.section ?? "Other";
+    if (!sections.has(section)) sections.set(section, []);
+    sections.get(section).push(round);
+  }
+  roundSelect.replaceChildren(
+    ...[...sections.entries()].map(([section, rounds]) => {
+      const group = document.createElement("optgroup");
+      group.label = section;
+      group.append(
+        ...rounds.map((round) => {
+          const option = document.createElement("option");
+          option.value = round.id;
+          option.textContent = round.title;
+          return option;
+        }),
+      );
+      return group;
+    }),
+  );
+}
+
+function hostNoteBlocks(content, fallback = "") {
+  const sections = [
+    ["Accept", content?.acceptable?.join(" · ")],
+    ["Pronunciation", content?.pronunciation],
+    ["Definition", content?.definition],
+    ["Origin", content?.origin],
+    ["Facts", content?.facts?.join(" ")],
+    ["Common misconception", content?.misconception],
+    ["Scoring", content?.scoring],
+    ["Media", content?.media],
+    ["Notes", fallback],
+  ].filter(([, value]) => value);
+
+  return sections.map(([label, value]) => {
+    const paragraph = document.createElement("p");
+    const strong = document.createElement("strong");
+    strong.textContent = `${label}: `;
+    paragraph.append(strong, document.createTextNode(value));
+    return paragraph;
+  });
 }
 
 async function runAction(button, action) {

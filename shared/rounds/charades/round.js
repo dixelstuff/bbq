@@ -3,6 +3,7 @@ import { mediaVisibility, roundTypes } from "../../round-types.js";
 
 export const charadesRound = {
   id: "charades",
+  section: "CHARADES",
   type: roundTypes.charades,
   typeLabel: "CHARADES",
   title: "Charades",

@@ -1,7 +1,12 @@
 import "../shared/development.js";
 import "../shared/styles.css";
 import { restartDatabaseConnection } from "../shared/firebase.js";
-import { observeGame, phases, submitAnswer } from "../shared/game-engine.js";
+import {
+  observeGame,
+  phases,
+  submitAnswer,
+  submitDefinitionVote,
+} from "../shared/game-engine.js";
 import { observeHostConnected } from "../shared/host-presence.js";
 import {
   observeGrouping,
@@ -56,6 +61,8 @@ const playerRoundType = document.querySelector("#player-round-type");
 const questionText = document.querySelector("#question-text");
 const answerForm = document.querySelector("#answer-form");
 const answerInput = document.querySelector("#answer");
+const answerTextControl = document.querySelector("#answer-text-control");
+const choiceOptions = document.querySelector("#choice-options");
 const answerButton = document.querySelector("#answer-submit");
 const answerStatus = document.querySelector("#answer-status");
 const playerResult = document.querySelector("#player-result");
@@ -63,6 +70,9 @@ const pairView = document.querySelector("#pair-view");
 const pairStatus = document.querySelector("#pair-status");
 const pairMembers = document.querySelector("#pair-members");
 const pairWaiting = document.querySelector("#pair-waiting");
+const votingView = document.querySelector("#voting-view");
+const definitionOptions = document.querySelector("#definition-options");
+const voteStatus = document.querySelector("#vote-status");
 
 let currentState = {
   step: loadNumber(playerStepKey, 1),
@@ -110,8 +120,37 @@ refreshButton.addEventListener("click", () => {
 
 answerForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const answer = answerInput.value.trim();
+  await submitPlayerAnswer(answerInput.value);
+});
 
+choiceOptions.addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-choice]");
+  if (button) await submitPlayerAnswer(button.dataset.choice);
+});
+
+definitionOptions.addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-definition-option]");
+  if (!button) return;
+  definitionOptions.querySelectorAll("button").forEach((item) => {
+    item.disabled = true;
+  });
+  voteStatus.textContent = "Voting…";
+  try {
+    await submitDefinitionVote(button.dataset.definitionOption);
+    voteStatus.dataset.error = "false";
+    voteStatus.textContent = "Vote locked";
+  } catch (error) {
+    console.error("[BBQ player] Unable to submit definition vote.", error);
+    definitionOptions.querySelectorAll("button").forEach((item) => {
+      item.disabled = false;
+    });
+    voteStatus.dataset.error = "true";
+    voteStatus.textContent = error.message || "Couldn’t vote. Try again.";
+  }
+});
+
+async function submitPlayerAnswer(rawAnswer) {
+  const answer = String(rawAnswer ?? "").trim();
   if (currentState.phase !== phases.question) {
     return;
   }
@@ -140,7 +179,7 @@ answerForm.addEventListener("submit", async (event) => {
         ? "Enter a valid number, such as 16900 or 16,900.5."
         : error.message || "Couldn’t submit. Please try again.";
   }
-});
+}
 
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
@@ -625,6 +664,7 @@ function renderPlayerGame() {
   questionView.hidden = true;
   playerResult.hidden = true;
   pairView.hidden = true;
+  votingView.hidden = true;
 
   if (!joined) {
     return;
@@ -646,6 +686,12 @@ function renderPlayerGame() {
         .join("\n");
       pairWaiting.textContent = "Your group is ready.";
     }
+    return;
+  }
+
+  if (phase === phases.opening) {
+    waitingMessage.textContent = "Get ready…";
+    waitingView.hidden = false;
     return;
   }
 
@@ -709,8 +755,24 @@ function renderPlayerGame() {
     playerRoundType.textContent = definition.typeLabel;
     questionText.textContent = definition.question;
     const numeric = definition.type === roundTypes.closestWins;
+    const choices = definition.choices ?? [];
     answerInput.inputMode = numeric ? "decimal" : "text";
     answerInput.placeholder = numeric ? "Enter a number" : "";
+    answerTextControl.hidden = choices.length > 0;
+    answerButton.hidden = choices.length > 0;
+    choiceOptions.hidden = choices.length === 0;
+    choiceOptions.replaceChildren(
+      ...choices.map((choice, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.choice = choice;
+        button.innerHTML = `<strong>${String.fromCharCode(
+          65 + index,
+        )}</strong><span>${escapeHtml(choice)}</span>`;
+        button.disabled = Boolean(submission);
+        return button;
+      }),
+    );
 
     if (submission) {
       answerInput.value = submission.answer;
@@ -724,6 +786,25 @@ function renderPlayerGame() {
       answerButton.disabled = false;
       answerStatus.textContent = "";
     }
+    return;
+  }
+
+  if (phase === phases.voting && definition?.type === roundTypes.myDefinition) {
+    votingView.hidden = false;
+    const vote = gameSnapshot?.round?.votes?.[playerId];
+    definitionOptions.replaceChildren(
+      ...(gameSnapshot?.round?.definitionOptions ?? []).map((option, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.definitionOption = option.id;
+        button.innerHTML = `<strong>${String.fromCharCode(
+          65 + index,
+        )}</strong><span>${escapeHtml(option.text)}</span>`;
+        button.disabled = Boolean(vote) || option.authorId === playerId;
+        return button;
+      }),
+    );
+    voteStatus.textContent = vote ? "Vote locked" : "Choose carefully.";
     return;
   }
 
@@ -745,6 +826,18 @@ function renderPlayerGame() {
       )}</span><span>Place: ${submission.placing}</span><span>+${
         submission.points ?? 0
       } points</span>`;
+    } else if (definition?.type === roundTypes.myDefinition) {
+      const points =
+        gameSnapshot?.round?.definitionScores?.[playerId] ?? 0;
+      playerResult.innerHTML = `<strong>${escapeHtml(
+        gameSnapshot?.round?.result?.word ?? definition.word,
+      )}</strong><span>${escapeHtml(
+        gameSnapshot?.round?.result?.definition ?? "",
+      )}</span><span>+${points} points</span>`;
+    } else if (definition?.type === roundTypes.bestFreeText) {
+      playerResult.textContent = `Your answer earned ${
+        submission.points ?? 0
+      } points.`;
     } else {
       playerResult.textContent =
         submission.status === "correct"

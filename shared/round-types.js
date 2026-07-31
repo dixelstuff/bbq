@@ -1,6 +1,9 @@
 export const roundTypes = {
   fastestFreeText: "fastest-free-text",
   closestWins: "closest-wins",
+  mcq: "mcq",
+  bestFreeText: "best-free-text",
+  myDefinition: "my-definition",
   pairingPrototype: "pairing-prototype",
   spellingBee: "spelling-bee",
   charades: "charades",
@@ -10,6 +13,9 @@ export const roundTypes = {
 export const scoringStrategies = {
   fastestCorrect: "fastest-correct",
   closestTwoOne: "closest-two-one",
+  exactAnswer: "exact-answer",
+  manual: "manual",
+  definitionBluff: "definition-bluff",
 };
 
 export const mediaVisibility = {
@@ -62,10 +68,39 @@ export function scoreRound(round, orderedSubmissions) {
         firstCorrect = false;
       }
 
-      return { ...submission, points };
+      return { ...submission, points: points + (submission.bonusPoints ?? 0) };
     });
   }
+  if (round?.scoring?.strategy === scoringStrategies.exactAnswer) {
+    const accepted = [
+      round.answer,
+      ...(round.acceptedAnswers ?? []),
+    ].map(normalizeComparableAnswer);
+    return orderedSubmissions.map((submission) => {
+      const correct = accepted.includes(normalizeComparableAnswer(submission.answer));
+      return {
+        ...submission,
+        status: correct ? "correct" : "incorrect",
+        points: correct ? round.scoring.correctPoints ?? 1 : 0,
+      };
+    });
+  }
+  if (round?.scoring?.strategy === scoringStrategies.manual) {
+    return orderedSubmissions.map((submission) => ({
+      ...submission,
+      status: "scored",
+      points: submission.points ?? 0,
+    }));
+  }
   throw new Error(`Unsupported scoring strategy: ${round?.scoring?.strategy}`);
+}
+
+function normalizeComparableAnswer(value) {
+  return String(value ?? "")
+    .trim()
+    .toLocaleLowerCase("en-AU")
+    .replace(/[.,!?'"’]/g, "")
+    .replace(/\s+/g, " ");
 }
 
 export function rankClosest(round, submissions) {
@@ -125,6 +160,19 @@ export function applyRoundScores(players, submissions) {
     };
   }
   return updated;
+}
+
+export function scoreDefinitionVotes(playerIds, options, votes) {
+  const awards = Object.fromEntries(playerIds.map((playerId) => [playerId, 0]));
+  for (const [voterId, optionId] of Object.entries(votes ?? {})) {
+    const option = options.find((item) => item.id === optionId);
+    if (option?.real) {
+      awards[voterId] = (awards[voterId] ?? 0) + 2;
+    } else if (option?.authorId && option.authorId !== voterId) {
+      awards[option.authorId] = (awards[option.authorId] ?? 0) + 1;
+    }
+  }
+  return awards;
 }
 
 export function shouldAutoCloseRound(round, eligiblePlayers, submissions) {

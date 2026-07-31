@@ -1,11 +1,12 @@
 import { onValue, ref, runTransaction } from "firebase/database";
 import { database, signIn } from "./firebase.js";
-import { getRound, partyGame } from "./games/party-game.js";
+import { getNextRound, getRound, partyGame } from "./games/party-game.js";
 import {
   applyRoundScores,
   normalizeSubmission,
   roundTypes,
   scoreRound,
+  scoreDefinitionVotes,
   shouldAutoCloseRound,
 } from "./round-types.js";
 import { validSessionState } from "./session-state.js";
@@ -19,8 +20,10 @@ import { displayModeForPhase, displayModes } from "./display-modes.js";
 const sessionPath = "sessions/default";
 const phases = {
   lobby: "lobby",
+  opening: "opening",
   question: "question",
   marking: "marking",
+  voting: "voting",
   reveal: "reveal",
   leaderboard: "leaderboard",
   intermission: "intermission",
@@ -109,9 +112,10 @@ export async function beginRound(roundId = partyGame.rounds[0].id) {
       };
     }
 
+    const { grouping: _previousGrouping, ...sessionWithoutGrouping } = session;
     return {
-      ...session,
-      grouping,
+      ...sessionWithoutGrouping,
+      ...(grouping ? { grouping } : {}),
       lockedNames,
       round: {
         id: round.id,
@@ -119,6 +123,9 @@ export async function beginRound(roundId = partyGame.rounds[0].id) {
         submissions: {},
         itemIndex: 0,
         promptIndex: 0,
+        attemptNumber: 1,
+        correctGuesses: 0,
+        skippedPrompts: 0,
         timer: null,
         displayMode: displayModeForPhase(round, phases.question),
         startedAt: Date.now(),
@@ -126,9 +133,10 @@ export async function beginRound(roundId = partyGame.rounds[0].id) {
       state: {
         ...state,
         step: 2,
-        phase: phases.question,
+        phase: round.media?.title ? phases.opening : phases.question,
         gameId: game.id,
         roundId: round.id,
+        nextRoundId: null,
         phaseStartedAt: Date.now(),
       },
     };
@@ -137,6 +145,22 @@ export async function beginRound(roundId = partyGame.rounds[0].id) {
     throw new Error("Create groups before starting this round");
   }
   return result;
+}
+
+export async function openRoundQuestion() {
+  return transactSession((session, state) => {
+    if (state.phase !== phases.opening) return;
+    return {
+      ...withPhase(session, state, phases.question),
+      round: {
+        ...session.round,
+        displayMode: displayModeForPhase(
+          getRound(state.gameId, state.roundId),
+          phases.question,
+        ),
+      },
+    };
+  });
 }
 
 export async function markSpelling({ word, correct }) {
@@ -265,6 +289,35 @@ export async function moveCharadesPrompt(direction) {
   });
 }
 
+export async function recordCharadesAttempt(outcome) {
+  if (!["correct", "skipped"].includes(outcome)) {
+    throw new Error("Unknown Charades outcome");
+  }
+  return transactSession((session, state) => {
+    const definition = getRound(state.gameId, state.roundId);
+    if (
+      state.phase !== phases.question ||
+      definition?.type !== roundTypes.charades
+    ) {
+      return;
+    }
+    return {
+      ...session,
+      round: {
+        ...session.round,
+        promptIndex: (session.round?.promptIndex ?? 0) + 1,
+        attemptNumber: (session.round?.attemptNumber ?? 1) + 1,
+        correctGuesses:
+          (session.round?.correctGuesses ?? 0) +
+          (outcome === "correct" ? 1 : 0),
+        skippedPrompts:
+          (session.round?.skippedPrompts ?? 0) +
+          (outcome === "skipped" ? 1 : 0),
+      },
+    };
+  });
+}
+
 export async function startRoundTimer(durationSeconds = 60) {
   const duration = Number(durationSeconds);
   if (!Number.isFinite(duration) || duration <= 0) {
@@ -330,18 +383,16 @@ export async function closeAnswers() {
     const definition = getRound(state.gameId, state.roundId);
     let submissions = session.round?.submissions ?? {};
 
-    if (definition?.type === roundTypes.closestWins) {
+    if (
+      [roundTypes.closestWins, roundTypes.mcq].includes(definition?.type)
+    ) {
       submissions = Object.fromEntries(
         scoreRound(definition, orderedSubmissions(session, state)).map(
           (submission) => [
             submission.playerId,
             {
               ...session.round.submissions[submission.playerId],
-              difference: submission.difference,
-              placing: submission.placing,
-              proposedPoints: submission.proposedPoints,
-              points: submission.points,
-              status: submission.status,
+              ...submission,
             },
           ],
         ),
@@ -411,8 +462,14 @@ export async function finishRound() {
     const historyId = `${session.round?.id ?? "round"}-${
       session.round?.startedAt ?? Date.now()
     }`;
+    const nextRound = getNextRound(state.gameId, state.roundId);
+    const intermission = withPhase(session, state, phases.intermission);
     return {
-      ...withPhase(session, state, phases.intermission),
+      ...intermission,
+      state: {
+        ...intermission.state,
+        nextRoundId: nextRound?.id ?? null,
+      },
       roundHistory: {
         ...(session.roundHistory ?? {}),
         [historyId]: {
@@ -570,6 +627,151 @@ export async function overrideSubmissionPoints(playerId, points) {
   });
 }
 
+export async function setSubmissionBonus(playerId, bonusPoints) {
+  const bonus = Number(bonusPoints);
+  if (!Number.isFinite(bonus)) throw new Error("Bonus must be a number");
+  return transactSession((session, state) => {
+    if (state.phase !== phases.marking) return;
+    const submission = session.round?.submissions?.[playerId];
+    if (!submission) return;
+    return {
+      ...session,
+      round: {
+        ...session.round,
+        submissions: {
+          ...session.round.submissions,
+          [playerId]: {
+            ...submission,
+            bonusPoints: bonus,
+          },
+        },
+      },
+    };
+  });
+}
+
+export async function openDefinitionVoting(realDefinition) {
+  const definition = String(realDefinition ?? "").trim();
+  if (!definition) throw new Error("The real definition is missing");
+  return transactSession((session, state) => {
+    const roundDefinition = getRound(state.gameId, state.roundId);
+    if (
+      state.phase !== phases.marking ||
+      roundDefinition?.type !== roundTypes.myDefinition
+    ) {
+      return;
+    }
+    const options = [
+      { id: "real", text: definition, real: true },
+      ...orderedSubmissions(session, state).map((submission) => ({
+        id: `fake-${submission.playerId}`,
+        text: submission.answer,
+        authorId: submission.playerId,
+      })),
+    ].sort((a, b) =>
+      stableOptionOrder(session.round?.startedAt, a.id).localeCompare(
+        stableOptionOrder(session.round?.startedAt, b.id),
+      ),
+    );
+    return {
+      ...session,
+      round: {
+        ...session.round,
+        definitionOptions: options,
+        votes: {},
+      },
+      state: {
+        ...state,
+        phase: phases.voting,
+        phaseStartedAt: Date.now(),
+      },
+    };
+  });
+}
+
+export async function submitDefinitionVote(optionId) {
+  const user = await signIn();
+  let rejection = "Voting is closed";
+  const result = await transactSession((session, state) => {
+    const definition = getRound(state.gameId, state.roundId);
+    if (
+      state.phase !== phases.voting ||
+      definition?.type !== roundTypes.myDefinition
+    ) {
+      return;
+    }
+    const option = session.round?.definitionOptions?.find(
+      (item) => item.id === optionId,
+    );
+    if (!option) {
+      rejection = "Choose a valid definition";
+      return;
+    }
+    if (option.authorId === user.uid) {
+      rejection = "You cannot vote for your own definition";
+      return;
+    }
+    return {
+      ...session,
+      round: {
+        ...session.round,
+        votes: {
+          ...(session.round?.votes ?? {}),
+          [user.uid]: optionId,
+        },
+      },
+    };
+  });
+  if (!result.committed) throw new Error(rejection);
+  return result;
+}
+
+export async function closeDefinitionVoting() {
+  return transactSession((session, state) => {
+    const definition = getRound(state.gameId, state.roundId);
+    if (
+      state.phase !== phases.voting ||
+      definition?.type !== roundTypes.myDefinition
+    ) {
+      return;
+    }
+    const options = session.round?.definitionOptions ?? [];
+    const awards = scoreDefinitionVotes(
+      currentPlayers(session, state).map((player) => player.id),
+      options,
+      session.round?.votes,
+    );
+    const players = { ...session.players };
+    for (const [playerId, points] of Object.entries(awards)) {
+      if (!players[playerId]) continue;
+      players[playerId] = {
+        ...players[playerId],
+        score: (players[playerId].score ?? 0) + points,
+      };
+    }
+    const realOption = options.find((option) => option.real);
+    return {
+      ...session,
+      players,
+      round: {
+        ...session.round,
+        definitionScores: awards,
+        result: {
+          word: definition.word,
+          definition: realOption?.text ?? "",
+          points: awards,
+          revealedAt: Date.now(),
+        },
+      },
+      state: {
+        ...state,
+        phase: phases.reveal,
+        phaseStartedAt: Date.now(),
+      },
+    };
+  });
+}
+
 export async function scoreAndReveal() {
   let unmarked = false;
 
@@ -695,4 +897,12 @@ function currentPlayers(session, state) {
       ),
     }))
     .filter((player) => player.generation === state.generation);
+}
+
+function stableOptionOrder(seed, id) {
+  let hash = Number(seed ?? 0) || 1;
+  for (const character of id) {
+    hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
+  }
+  return hash.toString(16).padStart(8, "0");
 }

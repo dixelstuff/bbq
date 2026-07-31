@@ -5,6 +5,7 @@ import { displayModes } from "../../display-modes.js";
 // grouping, scoring, history and Display modes.
 export const spellingBeeRound = {
   id: "spelling-bee",
+  section: "ANDREW DICK SPELLING BEE",
   type: roundTypes.spellingBee,
   typeLabel: "SPELLING BEE",
   title: "Andrew Dick Spelling Bee",

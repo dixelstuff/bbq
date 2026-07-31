@@ -1,63 +1,23 @@
-import {
-  mediaVisibility,
-  roundTypes,
-  scoringStrategies,
-} from "../round-types.js";
 import { spellingBeeRound } from "../rounds/spelling-bee/round.js";
 import { charadesRound } from "../rounds/charades/round.js";
+import {
+  bestFreeTextRounds,
+  closestWinsRounds,
+  definitionRounds,
+  fastestFreeTextRounds,
+  mcqRounds,
+} from "../rounds/demo-night/rounds.js";
 
 export const partyGame = {
   id: "birthday-party",
-  title: "BBQ",
+  title: "BBQ Demo Night",
   rounds: [
-    {
-      id: "animal-1",
-      type: roundTypes.fastestFreeText,
-      typeLabel: "FASTEST FREE TEXT",
-      title: "What animal is this?",
-      submission: {
-        expectsEveryConnectedPlayer: true,
-        autoCloseWhenComplete: false,
-      },
-      scoring: {
-        strategy: scoringStrategies.fastestCorrect,
-        firstCorrectPoints: 2,
-        otherCorrectPoints: 1,
-      },
-      question: "What animal is this?",
-      media: {
-        question: {
-          id: "placeholder-animal",
-          type: "image",
-          visibility: mediaVisibility.display,
-        },
-      },
-      answer: "Koala",
-      notes:
-        "Koalas are marsupials, not bears. Their closest living relatives are wombats.",
-    },
-    {
-      id: "melbourne-london-distance",
-      type: roundTypes.closestWins,
-      typeLabel: "CLOSEST WINS",
-      title: "Melbourne to London",
-      question: "How many kilometres is Melbourne from London?",
-      prompt: "Submit a number",
-      submission: {
-        kind: "number",
-        expectsEveryConnectedPlayer: true,
-        autoCloseWhenComplete: false,
-      },
-      scoring: {
-        strategy: scoringStrategies.closestTwoOne,
-        closestPoints: 2,
-        secondPoints: 1,
-      },
-      answer: "16,900",
-      correctValue: 16900,
-      notes: "Answers are ranked automatically by absolute distance from 16,900.",
-    },
+    ...mcqRounds,
+    ...fastestFreeTextRounds,
+    ...bestFreeTextRounds,
+    ...definitionRounds,
     spellingBeeRound,
+    ...closestWinsRounds,
     charadesRound,
   ],
 };
@@ -76,4 +36,10 @@ export function getRound(gameId, roundId) {
 
 export function getRounds(gameId = partyGame.id) {
   return getGame(gameId)?.rounds ?? [];
+}
+
+export function getNextRound(gameId, roundId) {
+  const rounds = getRounds(gameId);
+  const index = rounds.findIndex((round) => round.id === roundId);
+  return index >= 0 ? rounds[index + 1] : undefined;
 }

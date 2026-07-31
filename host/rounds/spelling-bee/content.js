@@ -1,33 +1,26 @@
-// Operational round content belongs to the Host, not the shared Display bundle.
 export const spellingBeeWords = [
-  {
-    word: "DIARRHOEA",
-    pronunciation: "dye-uh-REE-uh",
-    definition: "Frequent passing of loose or watery stools.",
-    example: "The unfortunate traveller blamed the roadside prawns for the diarrhoea.",
-  },
-  {
-    word: "EMBARRASSMENT",
-    pronunciation: "im-BARR-us-muhnt",
-    definition: "A feeling of self-consciousness, shame or awkwardness.",
-    example: "His confident misspelling caused only a brief embarrassment.",
-  },
-  {
-    word: "MANOEUVRE",
-    pronunciation: "muh-NOO-vuh",
-    definition: "A movement requiring skill and care.",
-    example: "Parking the caravan required a delicate manoeuvre.",
-  },
-  {
-    word: "CONSCIENTIOUS",
-    pronunciation: "kon-shee-EN-shus",
-    definition: "Careful to do things thoroughly and correctly.",
-    example: "The conscientious contestant asked for the definition.",
-  },
-  {
-    word: "MISCELLANEOUS",
-    pronunciation: "mis-uh-LAY-nee-us",
-    definition: "Made up of a variety of different things.",
-    example: "The drawer contained miscellaneous cables and birthday candles.",
-  },
-];
+  ["EMBARRASSMENT", "im-BARR-us-muhnt", "A feeling of self-consciousness, shame or awkwardness.", "His confident misspelling caused only brief embarrassment.", "Double R and double S."],
+  ["DIARRHOEA", "dye-uh-REE-uh", "Frequent passing of loose or watery stools.", "The unfortunate traveller blamed the roadside prawns for the diarrhoea.", "Australian/British spelling; American English usually uses diarrhea."],
+  ["QUESTIONNAIRE", "kwes-chuh-NAIR", "A written set of questions used to gather information.", "Every guest completed the suspiciously detailed questionnaire.", "One N before the A, then double N."],
+  ["ACCOMMODATION", "uh-kom-uh-DAY-shun", "A place to live or stay; also an adjustment made to suit a need.", "Their accommodation was closer to the beach than expected.", "Double C and double M."],
+  ["CONSCIENTIOUS", "kon-shee-EN-shus", "Careful to do things thoroughly and correctly.", "The conscientious contestant asked for the definition.", "Do not confuse it with conscious."],
+  ["MILLENNIUM", "mil-EN-ee-um", "A period of one thousand years.", "The town buried a time capsule for the new millennium.", "Double L and double N."],
+  ["SUPERSEDE", "soo-puh-SEED", "To replace something older or less effective.", "The new rule will supersede the old one.", "The only common English word ending in -sede; not supercede."],
+  ["PHARAOH", "FAIR-oh", "A ruler of ancient Egypt.", "The pharaoh commissioned an enormous monument.", "The unusual vowel order catches people."],
+  ["ONOMATOPOEIA", "on-uh-mat-uh-PEE-uh", "The formation of a word from the sound it represents.", "Buzz is an example of onomatopoeia.", "The word itself came through Greek."],
+  ["RHYTHM", "RITH-um", "A repeated pattern of sound or movement.", "The drummer kept a steady rhythm.", "Famously written without A, E, I, O or U."],
+  ["LIAISON", "lee-AY-zon", "Communication or cooperation between people or groups.", "She acted as liaison between the teams.", "French in origin; the internal vowel sequence is the trap."],
+  ["MANOEUVRE", "muh-NOO-vuh", "A movement requiring skill and care.", "Parking the caravan required a delicate manoeuvre.", "Australian/British spelling; American English uses maneuver."],
+  ["CAMOUFLAGE", "KAM-uh-flahzh", "A disguise that helps something blend into its surroundings.", "The insect's camouflage made it almost invisible.", "Borrowed from French."],
+  ["HARASS", "huh-RASS", "To subject someone to persistent pressure or unwanted behaviour.", "The magpies continued to harass the cyclist.", "One R, double S."],
+  ["MAINTENANCE", "MAYN-tuh-nuhns", "Work done to keep something in good condition.", "The ride closed for routine maintenance.", "It loses the second I from maintain."],
+  ["SEPARATE", "SEP-uh-rayt", "To divide or keep apart.", "Please separate the red cards from the blue.", "There is a rat in sep-a-rat-e."],
+  ["PRIVILEGE", "PRIV-uh-lij", "A special right, advantage or honour.", "Hosting the spelling bee was an unexpected privilege.", "No D before the G."],
+  ["OCCASIONALLY", "uh-KAY-zhuh-nuh-lee", "From time to time; not regularly.", "He occasionally remembered where he left his phone.", "Double C, one S, then double L."],
+].map(([word, pronunciation, definition, example, notes]) => ({
+  word,
+  pronunciation,
+  definition,
+  example,
+  notes,
+}));

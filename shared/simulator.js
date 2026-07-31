@@ -129,6 +129,11 @@ export async function submitAllSimulatedAnswers(
     const generatedAnswer =
       round?.type === roundTypes.closestWins
         ? String(round.correctValue + (index - 1) * 125)
+        : round?.type === roundTypes.mcq
+          ? round.choices?.[index % round.choices.length] ??
+            (index % 2 === 0 ? round.answer : `ANSWER ${index + 1}`)
+          : round?.type === roundTypes.myDefinition
+            ? `A suspiciously plausible meaning invented by PLAYER ${index + 1}`
         : `ANSWER ${index + 1}`;
     await submitSimulatedAnswer(player.id, answer || generatedAnswer);
   }

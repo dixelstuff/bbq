@@ -616,6 +616,67 @@ dialog::backdrop {
   text-align: center;
 }
 
+.choice-options,
+.definition-options {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.choice-options button,
+.definition-options button {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 4.5rem;
+  text-align: left;
+}
+
+.choice-options button strong,
+.definition-options button strong {
+  display: grid;
+  width: 2.25rem;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 35%);
+  border-radius: 50%;
+}
+
+.charades-stats,
+.charades-attempt-controls {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.charades-stats span {
+  padding: 0.8rem;
+  border-radius: 0.8rem;
+  background: #f0eee7;
+  text-align: center;
+}
+
+.charades-stats strong {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 1.8rem;
+}
+
+.charades-attempt-controls {
+  grid-template-columns: 2fr 1fr;
+}
+
+.charades-attempt-controls button {
+  min-height: 4.5rem;
+}
+
+.charades-category {
+  color: #6b6962;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 .mark-correct {
   background: #287441;
 }
@@ -720,5 +781,9 @@ dialog::backdrop {
 
   .charades-timer-controls {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .charades-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
