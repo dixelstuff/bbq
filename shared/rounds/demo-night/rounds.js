@@ -133,7 +133,7 @@ export const fastestFreeTextRounds = [
     answer: "Beethoven",
     prompt: "Listen to the clip.",
     audio: {
-      file: "composers/beethoven-symphony-5.mp3",
+      file: "composers/abydos_music-beethoven-symphony-no-5-158810.mp3",
       start: 0,
       duration: 15,
     },
@@ -144,8 +144,8 @@ export const fastestFreeTextRounds = [
     answer: "Richard Strauss",
     prompt: "Listen to the clip.",
     audio: {
-      file: "composers/strauss-also-sprach-zarathustra.mp3",
-      start: 0,
+      file: "composers/josepmonter-also-sprach-zarathustra-4968.mp3",
+      start: 18,
       duration: 15,
     },
   },
@@ -156,8 +156,8 @@ export const fastestFreeTextRounds = [
     acceptedAnswers: ["antonio vivaldi", "vivaldi"],
     prompt: "Listen to the clip.",
     audio: {
-      file: "composers/vivaldi-spring.mp3",
-      start: 0,
+      file: "composers/Classicals.de-Vivaldi-The-Four-Seasons-01-John-Harrison-with-the-Wichita-State-University-Chamber-Players-Spring-Mvt-1-Allegro.mp3",
+      start: 0.75,
       duration: 15,
     },
   },
@@ -168,8 +168,8 @@ export const fastestFreeTextRounds = [
     acceptedAnswers: ["gustav holst", "holst"],
     prompt: "Listen to the clip.",
     audio: {
-      file: "composers/holst-mars.mp3",
-      start: 0,
+      file: "composers/1Mars.wav",
+      start: 65,
       duration: 15,
     },
   },

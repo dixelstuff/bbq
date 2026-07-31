@@ -77,8 +77,11 @@ updates live.
 Progression is phase-based rather than screen-number based:
 
 ```text
-lobby → question → marking → reveal → leaderboard → intermission
+lobby → question → marking → reveal → intermission
 ```
+
+The leaderboard is a temporary Host-controlled presentation that can be shown
+and dismissed at any time. It is not inserted automatically between questions.
 
 The game/session contains rounds. Each round defines its round type, content,
 media visibility, submission policy, and scoring strategy. The shared engine

@@ -15,10 +15,10 @@ media/audio/
 The initial composer pack expects these filenames:
 
 ```text
-composers/beethoven-symphony-5.mp3
-composers/strauss-also-sprach-zarathustra.mp3
-composers/vivaldi-spring.mp3
-composers/holst-mars.mp3
+composers/abydos_music-beethoven-symphony-no-5-158810.mp3
+composers/josepmonter-also-sprach-zarathustra-4968.mp3
+composers/Classicals.de-Vivaldi-The-Four-Seasons-01-John-Harrison-with-the-Wichita-State-University-Chamber-Players-Spring-Mvt-1-Allegro.mp3
+composers/1Mars.wav
 composers/mozart-eine-kleine-nachtmusik.mp3
 composers/tchaikovsky-swan-lake.mp3
 ```
@@ -57,7 +57,7 @@ Add an `audio` object to a round definition:
 
 ```js
 audio: {
-  file: "composers/beethoven-symphony-5.mp3",
+  file: "composers/your-recording.mp3",
   start: 0,
   duration: 15,
 }
@@ -69,7 +69,7 @@ audio: {
 - Decimal values are supported, for example `start: 32.5`.
 
 PLAY and REPLAY seek to `start` and stop automatically after `duration`.
-PLAY 5 MORE SECONDS continues from the current stopping point, extending an
+PLAY 15 MORE SECONDS continues from the current stopping point, extending an
 active clip or resuming a clip that has just stopped. STOP pauses immediately.
 
 Playback occurs only on the local Display. Firebase carries small playback

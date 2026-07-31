@@ -39,8 +39,11 @@ export function setupDisplayAudio(button) {
 }
 
 export function syncDisplayAudio(snapshot) {
-  const { definition, round } = snapshot;
-  if (!definition?.audio) {
+  const { definition, round, state } = snapshot;
+  if (
+    !definition?.audio ||
+    ["lobby", "intermission"].includes(state?.phase)
+  ) {
     resetAudio();
     return;
   }

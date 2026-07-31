@@ -7,6 +7,7 @@ import {
   closeAnswers,
   closeDefinitionVoting,
   finishRound,
+  hideLeaderboard,
   markAllRemaining,
   markSpelling,
   openDefinitionVoting,
@@ -18,9 +19,7 @@ import {
   overrideSubmissionPoints,
   phases,
   scoreAndReveal,
-  showPairingLeaderboard,
   showLeaderboard,
-  showCharadesLeaderboard,
   startRoundTimer,
   stopRoundTimer,
   setRoundDisplayOverlay,
@@ -66,6 +65,7 @@ const resetDialog = document.querySelector("#reset-dialog");
 const resetConfirmButton = document.querySelector("#reset-confirm");
 const resetCancelButton = document.querySelector("#reset-cancel");
 const actionStatus = document.querySelector("#action-status");
+const leaderboardToggle = document.querySelector("#leaderboard-toggle");
 const phaseLabel = document.querySelector("#phase");
 const cueHeading = document.querySelector("#cue");
 const gamePanel = document.querySelector("#host-game");
@@ -195,10 +195,8 @@ nextButton.addEventListener("click", async () => {
     [phases.opening]: openRoundQuestion,
     [phases.question]: spellingRound
       ? null
-      : charadesRound
-      ? showCharadesLeaderboard
-      : pairingRound
-      ? showPairingLeaderboard
+      : charadesRound || pairingRound
+      ? finishRound
       : closeAnswers,
     [phases.marking]: definitionRound
       ? () =>
@@ -207,8 +205,8 @@ nextButton.addEventListener("click", async () => {
           )
       : scoreAndReveal,
     [phases.voting]: closeDefinitionVoting,
-    [phases.reveal]: spellingRound ? advanceSpelling : showLeaderboard,
-    [phases.leaderboard]: finishRound,
+    [phases.reveal]: spellingRound ? advanceSpelling : finishRound,
+    [phases.leaderboard]: hideLeaderboard,
     [phases.intermission]: () => beginRound(roundSelect.value),
   }[phase];
 
@@ -216,6 +214,15 @@ nextButton.addEventListener("click", async () => {
     await runAction(nextButton, action);
   }
 });
+
+leaderboardToggle.addEventListener("click", () =>
+  runAction(
+    leaderboardToggle,
+    gameSnapshot?.state.phase === phases.leaderboard
+      ? hideLeaderboard
+      : showLeaderboard,
+  ),
+);
 
 spellingPlayer.addEventListener("change", () =>
   runAction(spellingPlayer, () => setActiveGroup(spellingPlayer.value)),
@@ -280,10 +287,6 @@ charadesScoreButtons.addEventListener("click", (event) => {
   const button = event.target.closest("button[data-charades-points]");
   if (button) awardCurrentCharadesGroup(button.dataset.charadesPoints, button);
 });
-document.querySelector("#charades-leaderboard").addEventListener("click", (event) =>
-  runAction(event.currentTarget, showCharadesLeaderboard),
-);
-
 document.querySelector("#generate-teams").addEventListener("click", (event) =>
   runAction(event.currentTarget, () =>
     generateGrouping(groupingModes.twoTeams, participationModes.simultaneous),
@@ -416,6 +419,7 @@ function renderGame(snapshot) {
   const { state, definition, round, submissions } = snapshot;
   const isSpelling = definition?.type === roundTypes.spellingBee;
   const isCharades = definition?.type === roundTypes.charades;
+  const isPairing = definition?.type === roundTypes.pairingPrototype;
   phaseLabel.textContent = phaseTitle(state.phase, definition);
   cueHeading.textContent =
     state.phase === phases.lobby ? "Welcome" : definition?.typeLabel ?? partyGame.title;
@@ -477,21 +481,25 @@ function renderGame(snapshot) {
     [phases.question]:
       isSpelling
         ? "MARK THE SPELLING"
-        : isCharades
-          ? "SHOW LEADERBOARD"
+        : isCharades || isPairing
+          ? "FINISH ROUND"
         : definition?.flow?.question?.hostLabel ?? "CLOSE ANSWERS",
     [phases.marking]:
       definition?.type === roundTypes.myDefinition
         ? "OPEN VOTING"
         : "REVEAL RESULTS",
     [phases.voting]: "CLOSE VOTING & REVEAL",
-    [phases.reveal]: isSpelling ? "NEXT PLAYER" : "SHOW LEADERBOARD",
-    [phases.leaderboard]: "FINISH",
+    [phases.reveal]: isSpelling ? "NEXT PLAYER" : "NEXT QUESTION",
+    [phases.leaderboard]: "RETURN TO ROUND",
     [phases.intermission]: "START SELECTED ROUND",
   };
 
   nextButton.textContent = nextLabels[state.phase] ?? "NEXT";
   nextButton.disabled = isSpelling && state.phase === phases.question;
+  leaderboardToggle.textContent =
+    state.phase === phases.leaderboard
+      ? "RETURN TO ROUND"
+      : "SHOW LEADERBOARD";
 }
 
 function renderAudioControls(definition, round, phase) {

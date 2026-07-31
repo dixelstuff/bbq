@@ -32,13 +32,13 @@ test("media commands are ordered deterministically", () => {
   assert.throws(() => createMediaCommand("explode", 0, 1234), /Unknown/);
 });
 
-test("excerpt stop and five-second extension timings are deterministic", () => {
+test("excerpt stop and fifteen-second extension timings are deterministic", () => {
   assert.equal(
     configuredStopTime({ file: "clip.mp3", start: 12.5, duration: 8 }),
     20.5,
   );
-  assert.equal(extendedStopTime(18, 20.5), 25.5);
-  assert.equal(extendedStopTime(20.5), 25.5);
+  assert.equal(extendedStopTime(18, 20.5), 35.5);
+  assert.equal(extendedStopTime(20.5), 35.5);
 });
 
 test("the four current composer rounds reference local Display clips", () => {
@@ -47,10 +47,10 @@ test("the four current composer rounds reference local Display clips", () => {
   assert.deepEqual(
     composerRounds.map((round) => round.audio.file),
     [
-      "composers/beethoven-symphony-5.mp3",
-      "composers/strauss-also-sprach-zarathustra.mp3",
-      "composers/vivaldi-spring.mp3",
-      "composers/holst-mars.mp3",
+      "composers/abydos_music-beethoven-symphony-no-5-158810.mp3",
+      "composers/josepmonter-also-sprach-zarathustra-4968.mp3",
+      "composers/Classicals.de-Vivaldi-The-Four-Seasons-01-John-Harrison-with-the-Wichita-State-University-Chamber-Players-Spring-Mvt-1-Allegro.mp3",
+      "composers/1Mars.wav",
     ],
   );
 });

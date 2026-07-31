@@ -31,8 +31,10 @@ export function configuredStopTime(cue) {
   return normalized.start + normalized.duration;
 }
 
-export function extendedStopTime(currentTime, previousStopTime) {
+export function extendedStopTime(currentTime, previousStopTime, seconds = 15) {
   const current = Math.max(0, Number(currentTime) || 0);
   const previous = Number(previousStopTime);
-  return (Number.isFinite(previous) ? Math.max(previous, current) : current) + 5;
+  const extension = Math.max(0.1, Number(seconds) || 15);
+  return (Number.isFinite(previous) ? Math.max(previous, current) : current) +
+    extension;
 }

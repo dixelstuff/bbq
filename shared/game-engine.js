@@ -276,13 +276,7 @@ export async function advanceSpelling() {
     );
     const nextGroup = groups[activeIndex + 1];
     if (!nextGroup) {
-      return {
-        ...withPhase(session, state, phases.leaderboard),
-        round: {
-          ...session.round,
-          displayMode: displayModes.leaderboard,
-        },
-      };
+      return completeRound(session, state);
     }
 
     return {
@@ -467,28 +461,45 @@ export async function maybeAutoCloseAnswers() {
 }
 
 export async function showLeaderboard() {
-  return setPhase(phases.reveal, phases.leaderboard);
+  return transactSession((session, state) => {
+    if (state.phase === phases.leaderboard) return;
+    return {
+      ...session,
+      round: session.round
+        ? {
+            ...session.round,
+            timer: null,
+            displayMode: displayModes.leaderboard,
+          }
+        : session.round,
+      state: {
+        ...state,
+        phase: phases.leaderboard,
+        leaderboardReturnPhase: state.phase,
+        phaseStartedAt: Date.now(),
+      },
+    };
+  });
 }
 
 export async function showPairingLeaderboard() {
-  return setPhase(phases.question, phases.leaderboard);
+  return showLeaderboard();
 }
 
 export async function showCharadesLeaderboard() {
+  return showLeaderboard();
+}
+
+export async function hideLeaderboard() {
   return transactSession((session, state) => {
-    const definition = getRound(state.gameId, state.roundId);
-    if (
-      state.phase !== phases.question ||
-      definition?.type !== roundTypes.charades
-    ) {
-      return;
-    }
+    if (state.phase !== phases.leaderboard) return;
     return {
-      ...withPhase(session, state, phases.leaderboard),
-      round: {
-        ...session.round,
-        timer: null,
-        displayMode: displayModes.leaderboard,
+      ...session,
+      state: {
+        ...state,
+        phase: state.leaderboardReturnPhase ?? phases.intermission,
+        leaderboardReturnPhase: null,
+        phaseStartedAt: Date.now(),
       },
     };
   });
@@ -496,27 +507,32 @@ export async function showCharadesLeaderboard() {
 
 export async function finishRound() {
   return transactSession((session, state) => {
-    if (state.phase !== phases.leaderboard) return;
-    const historyId = `${session.round?.id ?? "round"}-${
-      session.round?.startedAt ?? Date.now()
-    }`;
-    const nextRound = getNextRound(state.gameId, state.roundId);
-    const intermission = withPhase(session, state, phases.intermission);
-    return {
-      ...intermission,
-      state: {
-        ...intermission.state,
-        nextRoundId: nextRound?.id ?? null,
-      },
-      roundHistory: {
-        ...(session.roundHistory ?? {}),
-        [historyId]: {
-          ...session.round,
-          finishedAt: Date.now(),
-        },
-      },
-    };
+    if (![phases.question, phases.reveal].includes(state.phase)) return;
+    return completeRound(session, state);
   });
+}
+
+function completeRound(session, state) {
+  const historyId = `${session.round?.id ?? "round"}-${
+    session.round?.startedAt ?? Date.now()
+  }`;
+  const nextRound = getNextRound(state.gameId, state.roundId);
+  const intermission = withPhase(session, state, phases.intermission);
+  return {
+    ...intermission,
+    state: {
+      ...intermission.state,
+      nextRoundId: nextRound?.id ?? null,
+      leaderboardReturnPhase: null,
+    },
+    roundHistory: {
+      ...(session.roundHistory ?? {}),
+      [historyId]: {
+        ...session.round,
+        finishedAt: Date.now(),
+      },
+    },
+  };
 }
 
 export async function submitAnswer(answer) {
