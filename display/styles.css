@@ -112,9 +112,25 @@ body {
 
 .display-game-screen {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
   justify-items: center;
   gap: 2rem;
+}
+
+.display-round-type,
+.display-prompt,
+.reveal-correct-answer {
+  margin: 0;
+  color: #a8f0ce;
+  font-size: clamp(1.2rem, 2.4vw, 2rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+.reveal-correct-answer {
+  font-size: clamp(2rem, 4vw, 4rem);
+  letter-spacing: -0.03em;
 }
 
 .display-game-image {
@@ -164,6 +180,12 @@ body {
   border-bottom: 1px solid rgb(244 255 248 / 20%);
   padding: 0.6rem 0;
   font-size: clamp(1.2rem, 2.5vw, 2rem);
+}
+
+.reveal-answers li.closest-result {
+  grid-template-columns: 4rem 2fr 1fr auto;
+  color: #f4fff8;
+  font-size: clamp(1.5rem, 3vw, 2.6rem);
 }
 
 .reveal-answers li.incorrect {

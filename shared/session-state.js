@@ -77,6 +77,7 @@ export async function resetGame() {
     // Replacing the complete session deliberately clears players, connections,
     // answers, scores, rounds, and any future per-game state in one operation.
     return {
+      releaseId: session?.releaseId ?? null,
       hostConnections: session?.hostConnections ?? null,
       state: {
         step: firstStep,
@@ -88,4 +89,22 @@ export async function resetGame() {
   });
 
   return validSessionState(result.snapshot.val()?.state);
+}
+
+export async function ensureSessionRelease(releaseId) {
+  await signIn();
+  return runTransaction(ref(database, sessionPath), (session) => {
+    if (session?.releaseId === releaseId) return;
+    const state = validSessionState(session?.state);
+    return {
+      releaseId,
+      hostConnections: session?.hostConnections ?? null,
+      state: {
+        step: firstStep,
+        generation: state.generation + 1,
+        phase: "lobby",
+        resetAt: Date.now(),
+      },
+    };
+  });
 }

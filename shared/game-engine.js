@@ -1,7 +1,13 @@
 import { onValue, ref, runTransaction } from "firebase/database";
 import { database, signIn } from "./firebase.js";
-import { fastestCorrectAnswerGame, getRound } from "./games/fastest-correct-answer.js";
-import { scoreRound, shouldAutoCloseRound } from "./round-types.js";
+import { getRound, partyGame } from "./games/party-game.js";
+import {
+  applyRoundScores,
+  normalizeSubmission,
+  roundTypes,
+  scoreRound,
+  shouldAutoCloseRound,
+} from "./round-types.js";
 import { validSessionState } from "./session-state.js";
 
 const sessionPath = "sessions/default";
@@ -53,13 +59,14 @@ export async function observeGame(onChange) {
   });
 }
 
-export async function beginFirstGame() {
+export async function beginRound(roundId = partyGame.rounds[0].id) {
   await signIn();
-  const game = fastestCorrectAnswerGame;
-  const round = game.rounds[0];
+  const game = partyGame;
+  const round = getRound(game.id, roundId);
+  if (!round) throw new Error("Unknown round");
 
   return transactSession((session, state) => {
-    if (state.phase !== phases.lobby) {
+    if (![phases.lobby, phases.intermission].includes(state.phase)) {
       return;
     }
 
@@ -89,7 +96,34 @@ export async function beginFirstGame() {
 }
 
 export async function closeAnswers() {
-  return setPhase(phases.question, phases.marking);
+  return transactSession((session, state) => {
+    if (state.phase !== phases.question) return;
+    const definition = getRound(state.gameId, state.roundId);
+    let submissions = session.round?.submissions ?? {};
+
+    if (definition?.type === roundTypes.closestWins) {
+      submissions = Object.fromEntries(
+        scoreRound(definition, orderedSubmissions(session, state)).map(
+          (submission) => [
+            submission.playerId,
+            {
+              ...session.round.submissions[submission.playerId],
+              difference: submission.difference,
+              placing: submission.placing,
+              proposedPoints: submission.proposedPoints,
+              points: submission.points,
+              status: submission.status,
+            },
+          ],
+        ),
+      );
+    }
+
+    return {
+      ...withPhase(session, state, phases.marking),
+      round: { ...session.round, submissions },
+    };
+  });
 }
 
 export async function maybeAutoCloseAnswers() {
@@ -118,7 +152,7 @@ export async function showLeaderboard() {
   return setPhase(phases.reveal, phases.leaderboard);
 }
 
-export async function finishGame() {
+export async function finishRound() {
   return setPhase(phases.leaderboard, phases.intermission);
 }
 
@@ -147,6 +181,15 @@ export async function submitAnswerForPlayer(playerId, answer) {
       return;
     }
 
+    const definition = getRound(state.gameId, state.roundId);
+    let normalized;
+    try {
+      normalized = normalizeSubmission(definition, answer);
+    } catch (error) {
+      rejection = error.message;
+      return;
+    }
+
     return {
       ...session,
       round: {
@@ -154,7 +197,7 @@ export async function submitAnswerForPlayer(playerId, answer) {
         submissions: {
           ...submissions,
           [playerId]: {
-            answer,
+            ...normalized,
             submittedAt: Date.now(),
             status: "pending",
           },
@@ -232,6 +275,33 @@ export async function markAllRemaining(status) {
   });
 }
 
+export async function overrideSubmissionPoints(playerId, points) {
+  const normalizedPoints = Number(points);
+  if (!Number.isFinite(normalizedPoints)) {
+    throw new Error("Points must be a number");
+  }
+
+  return transactSession((session, state) => {
+    if (state.phase !== phases.marking) return;
+    const submission = session.round?.submissions?.[playerId];
+    if (!submission) return;
+    return {
+      ...session,
+      round: {
+        ...session.round,
+        submissions: {
+          ...session.round.submissions,
+          [playerId]: {
+            ...submission,
+            points: normalizedPoints,
+            pointsOverridden: true,
+          },
+        },
+      },
+    };
+  });
+}
+
 export async function scoreAndReveal() {
   let unmarked = false;
 
@@ -241,30 +311,29 @@ export async function scoreAndReveal() {
     }
 
     const ordered = orderedSubmissions(session, state);
-    if (ordered.some((submission) => submission.status === "pending")) {
+    const roundDefinition = getRound(state.gameId, state.roundId);
+    if (
+      roundDefinition?.type === roundTypes.fastestFreeText &&
+      ordered.some((submission) => submission.status === "pending")
+    ) {
       unmarked = true;
       return;
     }
 
-    const roundDefinition = getRound(state.gameId, state.roundId);
-    const scored = scoreRound(roundDefinition, ordered);
+    const scored =
+      roundDefinition?.type === roundTypes.closestWins
+        ? ordered
+        : scoreRound(roundDefinition, ordered);
     const submissions = { ...(session.round?.submissions ?? {}) };
-    const players = { ...(session.players ?? {}) };
+    const players = applyRoundScores(session.players ?? {}, scored);
 
     for (const submission of scored) {
-      const { points } = submission;
+      const points = submission.points ?? 0;
       submissions[submission.playerId] = {
         ...submissions[submission.playerId],
         points,
       };
 
-      const player = players[submission.playerId];
-      if (player) {
-        players[submission.playerId] = {
-          ...player,
-          score: (player.score ?? 0) + points,
-        };
-      }
     }
 
     return {
@@ -334,7 +403,13 @@ function orderedSubmissions(session, state) {
       (submission) =>
         session.players?.[submission.playerId]?.generation === state.generation,
     )
-    .sort((a, b) => a.submittedAt - b.submittedAt);
+    .sort(
+      (a, b) =>
+        (a.placing ?? Number.MAX_SAFE_INTEGER) -
+          (b.placing ?? Number.MAX_SAFE_INTEGER) ||
+        a.submittedAt - b.submittedAt ||
+        a.playerId.localeCompare(b.playerId),
+    );
 }
 
 function currentPlayers(session, state) {

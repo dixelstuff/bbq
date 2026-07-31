@@ -1,9 +1,17 @@
 import { resolve } from "node:path";
+import { execFileSync } from "node:child_process";
 import { defineConfig, searchForWorkspaceRoot } from "vite";
+
+const releaseId = execFileSync("git", ["rev-parse", "HEAD"], {
+  encoding: "utf8",
+}).trim();
 
 export default defineConfig({
   root: resolve(import.meta.dirname, "display"),
   base: "/",
+  define: {
+    __BBQ_RELEASE_ID__: JSON.stringify(releaseId),
+  },
   server: {
     host: "127.0.0.1",
     port: 5173,

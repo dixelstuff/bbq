@@ -10,6 +10,11 @@ import {
   savePlayerName as savePlayerNameToFirebase,
 } from "../shared/players.js";
 import { observeSessionState } from "../shared/session-state.js";
+import {
+  formatNumericAnswer,
+  mediaForAudience,
+  roundTypes,
+} from "../shared/round-types.js";
 
 const hostPassword = "bigfat";
 const hostAccessKey = "bbq.hostAccess";
@@ -42,7 +47,8 @@ const debugReconnect = document.querySelector("#debug-reconnect");
 const waitingView = document.querySelector("#waiting-view");
 const waitingMessage = document.querySelector("#waiting-message");
 const questionView = document.querySelector("#question-view");
-const questionImage = document.querySelector("#question-image");
+const questionMedia = document.querySelector("#question-media");
+const playerRoundType = document.querySelector("#player-round-type");
 const questionText = document.querySelector("#question-text");
 const answerForm = document.querySelector("#answer-form");
 const answerInput = document.querySelector("#answer");
@@ -96,7 +102,13 @@ answerForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const answer = answerInput.value.trim();
 
-  if (!answer || currentState.phase !== phases.question) {
+  if (currentState.phase !== phases.question) {
+    return;
+  }
+  if (!answer) {
+    answerStatus.dataset.error = "true";
+    answerStatus.textContent = "Enter an answer.";
+    answerInput.focus();
     return;
   }
 
@@ -113,7 +125,10 @@ answerForm.addEventListener("submit", async (event) => {
     answerInput.disabled = false;
     answerButton.disabled = false;
     answerStatus.dataset.error = "true";
-    answerStatus.textContent = "Couldn’t submit. Please try again.";
+    answerStatus.textContent =
+      error.message === "Enter a valid number"
+        ? "Enter a valid number, such as 16900 or 16,900.5."
+        : error.message || "Couldn’t submit. Please try again.";
   }
 });
 
@@ -597,9 +612,20 @@ function renderPlayerGame() {
 
   if (phase === phases.question && definition) {
     questionView.hidden = false;
-    questionImage.src = definition.image;
-    questionImage.alt = definition.imageAlt;
+    const playerMedia = mediaForAudience(definition, "player");
+    questionMedia.hidden = !playerMedia;
+    if (playerMedia?.type === "image") {
+      questionMedia.src = playerMedia.src;
+      questionMedia.alt = playerMedia.alt ?? "";
+    } else {
+      questionMedia.removeAttribute("src");
+      questionMedia.alt = "";
+    }
+    playerRoundType.textContent = definition.typeLabel;
     questionText.textContent = definition.question;
+    const numeric = definition.type === roundTypes.closestWins;
+    answerInput.inputMode = numeric ? "decimal" : "text";
+    answerInput.placeholder = numeric ? "Enter a number" : "";
 
     if (submission) {
       answerInput.value = submission.answer;
@@ -626,10 +652,20 @@ function renderPlayerGame() {
 
   if (phase === phases.reveal && submission) {
     playerResult.hidden = false;
-    playerResult.textContent =
-      submission.status === "correct"
-        ? "Your answer was correct."
-        : "Your answer was incorrect.";
+    if (definition?.type === roundTypes.closestWins) {
+      playerResult.innerHTML = `<strong>Your answer: ${escapeHtml(
+        submission.answer,
+      )}</strong><span>Correct answer: ${escapeHtml(
+        formatNumericAnswer(definition.correctValue),
+      )}</span><span>Place: ${submission.placing}</span><span>+${
+        submission.points ?? 0
+      } points</span>`;
+    } else {
+      playerResult.textContent =
+        submission.status === "correct"
+          ? `Your answer was correct. +${submission.points ?? 0} points.`
+          : "Your answer was incorrect. +0 points.";
+    }
   }
 
   waitingView.hidden = false;
@@ -637,6 +673,12 @@ function renderPlayerGame() {
 
 function updateBadge(name = loadPlayerName()) {
   playerBadge.textContent = name;
+}
+
+function escapeHtml(value) {
+  const element = document.createElement("span");
+  element.textContent = value;
+  return element.innerHTML;
 }
 
 function setConnectionState(connectionState) {

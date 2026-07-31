@@ -3,6 +3,14 @@ import "./styles.css";
 import QRCode from "qrcode";
 import { observeGame, phases } from "../shared/game-engine.js";
 import { observePlayers } from "../shared/players.js";
+import { releaseId } from "../shared/release.js";
+import { ensureSessionRelease } from "../shared/session-state.js";
+import { resolveDisplayMedia } from "./media.js";
+import {
+  formatNumericAnswer,
+  mediaForAudience,
+  roundTypes,
+} from "../shared/round-types.js";
 
 const joinUrl = "https://dixelstuff.github.io/bbq/";
 const waitingScreen = document.querySelector("#waiting-screen");
@@ -16,12 +24,18 @@ const playerNames = document.querySelector("#player-names");
 const qrCanvas = document.querySelector("#join-qr");
 const questionImage = document.querySelector("#display-question-image");
 const questionText = document.querySelector("#display-question");
+const displayRoundType = document.querySelector("#display-round-type");
+const displayPrompt = document.querySelector("#display-prompt");
 const holdingText = document.querySelector("#holding-text");
 const revealQuestion = document.querySelector("#reveal-question");
+const revealRoundType = document.querySelector("#reveal-round-type");
+const revealCorrectAnswer = document.querySelector("#reveal-correct-answer");
 const revealAnswers = document.querySelector("#reveal-answers");
 const leaderboard = document.querySelector("#leaderboard");
 
 let players = [];
+
+await ensureSessionRelease(releaseId);
 
 QRCode.toCanvas(qrCanvas, joinUrl, {
   width: 520,
@@ -73,9 +87,20 @@ function renderGame(snapshot) {
 
   if (state.phase === phases.question && definition) {
     showOnly(questionScreen);
-    questionImage.src = definition.image;
-    questionImage.alt = definition.imageAlt;
+    const media = resolveDisplayMedia(
+      mediaForAudience(definition, "display"),
+    );
+    questionImage.hidden = !media;
+    if (media?.type === "image") {
+      questionImage.src = media.src;
+      questionImage.alt = media.alt ?? "";
+    } else {
+      questionImage.removeAttribute("src");
+      questionImage.alt = "";
+    }
+    displayRoundType.textContent = definition.typeLabel;
     questionText.textContent = definition.question;
+    displayPrompt.textContent = definition.prompt ?? "";
     return;
   }
 
@@ -87,16 +112,31 @@ function renderGame(snapshot) {
 
   if (state.phase === phases.reveal && definition) {
     showOnly(revealScreen);
+    revealRoundType.textContent = definition.typeLabel;
     revealQuestion.textContent = definition.question;
+    revealCorrectAnswer.textContent = `CORRECT ANSWER: ${
+      definition.type === roundTypes.closestWins
+        ? formatNumericAnswer(definition.correctValue)
+        : definition.answer
+    }`;
     revealAnswers.replaceChildren(
       ...submissions.map((submission) => {
         const item = document.createElement("li");
         item.className = submission.status;
-        item.innerHTML = `<strong>${escapeHtml(
-          submission.playerName,
-        )}</strong><span>${escapeHtml(submission.answer)}</span><span>${
-          submission.status === "correct" ? "Correct" : "Incorrect"
-        } · ${submission.points ?? 0} pts</span>`;
+        if (definition.type === roundTypes.closestWins) {
+          item.className = "closest-result";
+          item.innerHTML = `<strong>${submission.placing}</strong><strong>${escapeHtml(
+            submission.playerName,
+          )}</strong><span>${escapeHtml(submission.answer)}</span><strong>+${
+            submission.points ?? 0
+          }</strong>`;
+        } else {
+          item.innerHTML = `<strong>${escapeHtml(
+            submission.playerName,
+          )}</strong><span>${escapeHtml(submission.answer)}</span><span>${
+            submission.status === "correct" ? "Correct" : "Incorrect"
+          } · ${submission.points ?? 0} pts</span>`;
+        }
         return item;
       }),
     );

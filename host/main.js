@@ -1,19 +1,29 @@
 import "../shared/development.js";
 import "../shared/styles.css";
 import {
-  beginFirstGame,
+  beginRound,
   closeAnswers,
-  finishGame,
+  finishRound,
   markAllRemaining,
   markSubmission,
   observeGame,
+  overrideSubmissionPoints,
   phases,
   scoreAndReveal,
   showLeaderboard,
 } from "../shared/game-engine.js";
+import {
+  getRounds,
+  partyGame,
+} from "../shared/games/party-game.js";
 import { maintainHostPresence } from "../shared/host-presence.js";
 import { observePlayers } from "../shared/players.js";
-import { resetGame } from "../shared/session-state.js";
+import { releaseId } from "../shared/release.js";
+import { roundTypes } from "../shared/round-types.js";
+import {
+  ensureSessionRelease,
+  resetGame,
+} from "../shared/session-state.js";
 
 const nextButton = document.querySelector("#next");
 const joinedCount = document.querySelector("#joined-count");
@@ -27,7 +37,6 @@ const actionStatus = document.querySelector("#action-status");
 const phaseLabel = document.querySelector("#phase");
 const cueHeading = document.querySelector("#cue");
 const gamePanel = document.querySelector("#host-game");
-const gameImage = document.querySelector("#host-game-image");
 const questionText = document.querySelector("#host-question");
 const correctAnswer = document.querySelector("#correct-answer");
 const notes = document.querySelector("#notes");
@@ -38,9 +47,22 @@ const emptySubmissions = document.querySelector("#empty-submissions");
 const bulkActions = document.querySelector("#bulk-actions");
 const markAllCorrectButton = document.querySelector("#mark-all-correct");
 const markAllIncorrectButton = document.querySelector("#mark-all-incorrect");
+const roundSelection = document.querySelector("#round-selection");
+const roundSelect = document.querySelector("#round-select");
 
 let gameSnapshot;
 let latestPlayers = [];
+
+await ensureSessionRelease(releaseId);
+
+roundSelect.replaceChildren(
+  ...getRounds().map((round) => {
+    const option = document.createElement("option");
+    option.value = round.id;
+    option.textContent = `${round.typeLabel} — ${round.title}`;
+    return option;
+  }),
+);
 
 maintainHostPresence().catch((error) => {
   console.error("[BBQ host] Unable to register Host presence.", error);
@@ -63,11 +85,12 @@ observeGame((snapshot) => {
 nextButton.addEventListener("click", async () => {
   const phase = gameSnapshot?.state.phase;
   const action = {
-    [phases.lobby]: beginFirstGame,
+    [phases.lobby]: () => beginRound(roundSelect.value),
     [phases.question]: closeAnswers,
     [phases.marking]: scoreAndReveal,
     [phases.reveal]: showLeaderboard,
-    [phases.leaderboard]: finishGame,
+    [phases.leaderboard]: finishRound,
+    [phases.intermission]: () => beginRound(roundSelect.value),
   }[phase];
 
   if (action) {
@@ -83,6 +106,14 @@ submissionsList.addEventListener("click", async (event) => {
 
   await runAction(button, () =>
     markSubmission(button.dataset.playerId, button.dataset.status),
+  );
+});
+
+submissionsList.addEventListener("change", async (event) => {
+  const input = event.target.closest("input[data-points-player]");
+  if (!input) return;
+  await runAction(input, () =>
+    overrideSubmissionPoints(input.dataset.pointsPlayer, input.value),
   );
 });
 
@@ -130,23 +161,26 @@ function renderGame(snapshot) {
   const { state, definition, submissions } = snapshot;
   phaseLabel.textContent = phaseTitle(state.phase);
   cueHeading.textContent =
-    state.phase === phases.lobby ? "Welcome" : "Fastest Correct Answer";
+    state.phase === phases.lobby ? "Welcome" : definition?.typeLabel ?? partyGame.title;
 
   gamePanel.hidden = !definition;
-  bulkActions.hidden = state.phase !== phases.marking;
+  bulkActions.hidden =
+    state.phase !== phases.marking ||
+    definition?.type !== roundTypes.fastestFreeText;
   submissionsHeading.hidden = !definition;
   submissionsList.hidden = !definition;
   emptySubmissions.hidden = !definition || submissions.length > 0;
 
   if (definition) {
-    gameImage.src = definition.image;
-    gameImage.alt = definition.imageAlt;
     questionText.textContent = definition.question;
     correctAnswer.textContent = definition.answer;
     notes.textContent = definition.notes;
     roundType.textContent = definition.typeLabel;
     renderSubmissions(submissions, state.phase);
   }
+  roundSelection.hidden = ![phases.lobby, phases.intermission].includes(
+    state.phase,
+  );
 
   const nextLabels = {
     [phases.lobby]: "START GAME",
@@ -154,7 +188,7 @@ function renderGame(snapshot) {
     [phases.marking]: "REVEAL RESULTS",
     [phases.reveal]: "SHOW LEADERBOARD",
     [phases.leaderboard]: "FINISH",
-    [phases.intermission]: "GAME COMPLETE",
+    [phases.intermission]: "START SELECTED ROUND",
   };
 
   nextButton.textContent = nextLabels[state.phase] ?? "NEXT";
@@ -191,6 +225,7 @@ function setupSimulatorControls() {
         simulatorPlayers(),
         document.querySelector("#sim-answer").value,
         Number(document.querySelector("#sim-delay").value),
+        gameSnapshot?.definition,
       ),
     ),
   );
@@ -237,6 +272,7 @@ function renderSimulatorPlayers() {
 }
 
 function renderSubmissions(submissions, phase) {
+  const definition = gameSnapshot?.definition;
   submissionsList.replaceChildren(
     ...submissions.map((submission, index) => {
       const item = document.createElement("li");
@@ -244,12 +280,31 @@ function renderSubmissions(submissions, phase) {
       const controls = document.createElement("div");
 
       item.className = `submission-row ${submission.status}`;
-      answer.innerHTML = `<strong>${index + 1}. ${escapeHtml(
+      const prefix = submission.placing
+        ? `${submission.placing}.`
+        : `${index + 1}.`;
+      answer.innerHTML = `<strong>${prefix} ${escapeHtml(
         submission.playerName,
       )}</strong><span>${escapeHtml(submission.answer)}</span>`;
       controls.className = "mark-actions";
 
-      if (phase === phases.marking) {
+      if (
+        phase === phases.marking &&
+        definition?.type === roundTypes.closestWins
+      ) {
+        const check = document.createElement("span");
+        const points = document.createElement("input");
+        check.className = "closeness-check";
+        check.textContent = `${submission.difference} away · proposed +${
+          submission.proposedPoints ?? 0
+        }`;
+        points.type = "number";
+        points.step = "1";
+        points.value = String(submission.points ?? 0);
+        points.dataset.pointsPlayer = submission.playerId;
+        points.setAttribute("aria-label", `Points for ${submission.playerName}`);
+        controls.append(check, points);
+      } else if (phase === phases.marking) {
         if (submission.status !== "pending") {
           const status = document.createElement("strong");
           status.className = `marking-status ${submission.status}`;

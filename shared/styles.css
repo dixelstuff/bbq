@@ -65,6 +65,7 @@ h2 {
 }
 
 input,
+select,
 button {
   width: 100%;
   min-height: 3.5rem;
@@ -72,7 +73,8 @@ button {
   font: inherit;
 }
 
-input {
+input,
+select {
   border: 1px solid #cfccc4;
   padding: 0 1rem;
   background: #fff;
@@ -409,11 +411,23 @@ dialog::backdrop {
 }
 
 .player-result {
+  display: grid;
+  gap: 0.5rem;
   border-radius: 1rem;
   padding: 1.25rem;
   background: #fff;
   font-size: 1.2rem;
   text-align: center;
+}
+
+.mark-actions input[type="number"] {
+  width: 5rem;
+  min-height: 2.5rem;
+}
+
+.closeness-check {
+  color: #6b6962;
+  font-size: 0.78rem;
 }
 
 .host-game-image {

@@ -2,8 +2,8 @@
 
 A browser-based party show-running engine.
 
-Milestone 1 proves the connection between three browser applications using
-Firebase Anonymous Authentication and Realtime Database.
+The three browser applications communicate through Firebase Anonymous
+Authentication and Realtime Database.
 
 ## Applications
 
@@ -15,11 +15,6 @@ presentation application and is deliberately excluded from the public build.
 The recommended workflow on the Mac is to double-click `Launch BBQ.command`.
 It updates `/Users/andrew/bbq`, installs any changed dependencies, and starts
 only the local Display.
-
-Local Vite development pages clear their local and session storage when they
-load, so development checks begin from a known state. Production GitHub Pages
-storage is never cleared. The local Player development page also includes a
-small connection diagnostics panel.
 
 The equivalent Terminal commands are:
 
@@ -35,7 +30,7 @@ and Players only through Firebase; they do not depend on the Mac or its network.
 
 ## Firebase data
 
-Milestone 1 uses one deliberately small path:
+The shared session keeps durable players separate from live connections:
 
 ```text
 sessions/default/
@@ -57,10 +52,10 @@ Firebase Anonymous Authentication is stored independently by each browser, so
 Safari, Chrome, and other browser profiles act as separate players. Tabs in the
 same browser profile intentionally represent the same player.
 
-The shared numeric step starts at `1`. Names can be edited live while it remains
-at `1`; the atomic session transaction snapshots and locks them as soon as Host
-advances. Running-game clients read that snapshot, so a stale Screen 1 browser
-cannot change the accepted names.
+The shared numeric step starts at `1`. Names update only when Players confirm
+them while in the lobby. The atomic session transaction snapshots and locks
+them as soon as Host advances. Running-round clients read that snapshot, so a
+stale lobby browser cannot change accepted names.
 Host can advance or fully reset the game, and all three applications receive
 updates live.
 
@@ -72,14 +67,19 @@ Progression is phase-based rather than screen-number based:
 lobby → question → marking → reveal → leaderboard → intermission
 ```
 
-Game definitions provide content such as the question, local image, answer, and
-Host notes. The shared engine owns submissions, timestamps, answer locking,
-manual marks, scoring, reveals, and leaderboard ordering.
+The game/session contains rounds. Each round defines its round type, content,
+media visibility, submission policy, and scoring strategy. The shared engine
+owns submissions, timestamps, answer locking, ranking, score overrides,
+reveals, and leaderboard ordering.
 
-Game 1 is `Fastest Correct Answer`. The fastest correct submission receives two
-points, later correct submissions receive one, and incorrect submissions
-receive zero. Its placeholder koala image is bundled from `media/images/` to
-exercise the local-media pipeline.
+The sample rounds are `FASTEST FREE TEXT` and `CLOSEST WINS`. Shared media is
+Display-only by default and is resolved from the local Display media library,
+so the koala asset is not included in the public Player/Host deployment.
+
+Every production build and local Display build carries its Git commit as a
+release identifier. The first updated Host or Display to connect resets the
+Firebase session once for that release, preventing an old in-progress round
+from surviving a code update.
 
 ## Public deployment
 
@@ -89,5 +89,6 @@ Pushes to `main` deploy automatically to GitHub Pages:
 - `https://dixelstuff.github.io/bbq/player/` — Player entry alias
 - `https://dixelstuff.github.io/bbq/host/`
 
-The Host route requires the lightweight party password gate from the Player
-entry screen. Display is not included in the deployed artifact.
+The Host URL requests the lightweight party password directly. The Player page
+also offers Host access when no Host is connected. Display is not included in
+the deployed artifact.

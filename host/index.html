@@ -14,8 +14,17 @@
         hostAccessGranted = false;
       }
 
-      if (!hostAccessGranted) {
-        window.location.replace("/bbq/");
+      while (!hostAccessGranted) {
+        const password = window.prompt("Enter the BBQ Host password");
+        if (password === "bigfat") {
+          sessionStorage.setItem("bbq.hostAccess", "granted");
+          hostAccessGranted = true;
+        } else if (password === null) {
+          window.location.replace("/bbq/");
+          break;
+        } else {
+          window.alert("Incorrect Host password.");
+        }
       }
     </script>
   </head>
@@ -36,6 +45,11 @@
         </section>
       </section>
 
+      <section id="round-selection" class="stack">
+        <label for="round-select"><strong>Round for testing</strong></label>
+        <select id="round-select"></select>
+      </section>
+
       <details id="development-tools" class="development-tools">
         <summary>Development</summary>
         <section id="simulator-panel" class="simulator-panel stack">
@@ -50,7 +64,7 @@
             <button id="sim-remove" class="danger secondary" type="button">REMOVE ALL</button>
           </div>
           <div class="simulator-controls">
-            <label>Answer <input id="sim-answer" type="text" value="KOALA" /></label>
+            <label>Answer <input id="sim-answer" type="text" placeholder="Blank = generated" /></label>
             <label>Stagger ms <input id="sim-delay" type="number" min="0" value="250" /></label>
             <button id="sim-submit" class="secondary" type="button">SUBMIT ALL</button>
           </div>
@@ -59,7 +73,6 @@
       </details>
 
       <section id="host-game" class="host-game stack" hidden>
-        <img id="host-game-image" class="game-image host-game-image" alt="" />
         <h2 id="host-question"></h2>
         <p><strong>Correct answer:</strong> <span id="correct-answer"></span></p>
         <p id="notes" class="host-notes"></p>

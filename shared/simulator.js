@@ -2,6 +2,7 @@ import { ref, runTransaction } from "firebase/database";
 import { database, signIn } from "./firebase.js";
 import { submitAnswerForPlayer } from "./game-engine.js";
 import { validSessionState } from "./session-state.js";
+import { roundTypes } from "./round-types.js";
 
 const sessionPath = "sessions/default";
 const simulatedPrefix = "simulated-player-";
@@ -111,7 +112,12 @@ export async function submitSimulatedAnswer(playerId, answer) {
   return submitAnswerForPlayer(playerId, String(answer).trim());
 }
 
-export async function submitAllSimulatedAnswers(players, answer, delayMs = 0) {
+export async function submitAllSimulatedAnswers(
+  players,
+  answer,
+  delayMs = 0,
+  round,
+) {
   const eligible = players.filter(
     (player) => player.simulated && player.connected && !player.answer,
   );
@@ -120,6 +126,10 @@ export async function submitAllSimulatedAnswers(players, answer, delayMs = 0) {
     if (delayMs > 0 && index > 0) {
       await new Promise((resolve) => window.setTimeout(resolve, delayMs));
     }
-    await submitSimulatedAnswer(player.id, answer || `ANSWER ${index + 1}`);
+    const generatedAnswer =
+      round?.type === roundTypes.closestWins
+        ? String(round.correctValue + (index - 1) * 125)
+        : `ANSWER ${index + 1}`;
+    await submitSimulatedAnswer(player.id, answer || generatedAnswer);
   }
 }
