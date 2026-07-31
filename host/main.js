@@ -927,13 +927,47 @@ function hostNoteBlocks(content, fallback = "") {
     ["Notes", fallback],
   ].filter(([, value]) => value);
 
-  return sections.map(([label, value]) => {
+  const blocks = sections.map(([label, value]) => {
     const paragraph = document.createElement("p");
     const strong = document.createElement("strong");
     strong.textContent = `${label}: `;
     paragraph.append(strong, document.createTextNode(value));
     return paragraph;
   });
+
+  for (const section of content?.research ?? []) {
+    const details = document.createElement("details");
+    const summary = document.createElement("summary");
+    const body = document.createElement("div");
+    summary.textContent = section.title;
+    body.className = "host-research-body";
+    if (section.intro) {
+      const intro = document.createElement("p");
+      intro.textContent = section.intro;
+      body.append(intro);
+    }
+    if (section.items?.length) {
+      const list = document.createElement("ul");
+      for (const item of section.items) {
+        const row = document.createElement("li");
+        row.textContent = item;
+        list.append(row);
+      }
+      body.append(list);
+    }
+    if (section.source?.url) {
+      const source = document.createElement("a");
+      source.href = section.source.url;
+      source.target = "_blank";
+      source.rel = "noreferrer";
+      source.textContent = `Source: ${section.source.label}`;
+      body.append(source);
+    }
+    details.append(summary, body);
+    blocks.push(details);
+  }
+
+  return blocks;
 }
 
 async function runAction(button, action) {

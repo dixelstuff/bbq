@@ -759,6 +759,36 @@ dialog::backdrop {
   line-height: 1.5;
 }
 
+.host-notes details {
+  border: 1px solid #dedbd3;
+  border-radius: 0.65rem;
+  background: #fff;
+}
+
+.host-notes summary {
+  padding: 0.8rem 0.9rem;
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.host-research-body {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0 0.9rem 0.9rem;
+  color: #343430;
+}
+
+.host-research-body p,
+.host-research-body ul {
+  margin: 0;
+}
+
+.host-research-body ul {
+  display: grid;
+  gap: 0.35rem;
+  padding-left: 1.25rem;
+}
+
 .submissions {
   display: grid;
   gap: 0.75rem;

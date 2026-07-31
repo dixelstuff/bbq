@@ -11,6 +11,7 @@ const answerRound = ({
   typeLabel,
   question,
   answer,
+  revealAnswer,
   acceptedAnswers,
   choices,
   mediaId,
@@ -26,6 +27,7 @@ const answerRound = ({
   title: question,
   question,
   answer,
+  revealAnswer,
   acceptedAnswers,
   choices,
   correctValue,
@@ -136,6 +138,7 @@ export const fastestFreeTextRounds = [
     id: "fastest-jupiter-moon",
     question: "Name any moon of Jupiter.",
     answer: "Any genuine moon of Jupiter",
+    revealAnswer: "IO · EUROPA · GANYMEDE · CALLISTO + 97 MORE",
     acceptedAnswers: ["manual"],
   },
   {

@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { charadesLibrary, charadesPrompts } from "../host/rounds/charades/content.js";
 import { spellingBeeWords } from "../host/rounds/spelling-bee/content.js";
+import { getHostContent } from "../host/rounds/demo-night/content.js";
 import {
   bestFreeTextRounds,
   closestWinsRounds,
@@ -98,6 +99,29 @@ test("spelling bee Host cards include an origin and a playful sentence", () => {
     assert.ok(item.origin.length > 10, item.word);
     assert.ok(item.example.length > 20, item.word);
   }
+});
+
+test("debate-prone questions include expandable Host research", () => {
+  for (const id of [
+    "fastest-shakespeare",
+    "fastest-australian-coastline",
+    "fastest-jupiter-moon",
+    "mcq-time-zones",
+    "mcq-shortest-day",
+    "mcq-chess-squares",
+  ]) {
+    const research = getHostContent(id).research;
+    assert.ok(research?.length, id);
+    assert.ok(research.some((section) => section.items?.length >= 5), id);
+  }
+});
+
+test("open-answer rounds can provide an audience-friendly reveal", () => {
+  const moons = fastestFreeTextRounds.find(
+    (round) => round.id === "fastest-jupiter-moon",
+  );
+  assert.match(moons.revealAnswer, /IO.*EUROPA.*97 MORE/);
+  assert.equal(moons.answer, "Any genuine moon of Jupiter");
 });
 
 test("My Definition awards two for finding truth and one per fooled rival", () => {

@@ -190,7 +190,7 @@ function renderGame(snapshot) {
         ? formatNumericAnswer(definition.correctValue)
         : definition.type === roundTypes.myDefinition
           ? round?.result?.definition
-          : definition.answer;
+          : definition.revealAnswer ?? definition.answer;
     revealCorrectAnswer.textContent =
       definition.type === roundTypes.bestFreeText
         ? "HOST'S PICKS"
