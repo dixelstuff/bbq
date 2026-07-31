@@ -124,6 +124,21 @@ test("open-answer rounds can provide an audience-friendly reveal", () => {
   assert.equal(moons.answer, "Any genuine moon of Jupiter");
 });
 
+test("every factual demo-night question has a substantial Host briefing", () => {
+  for (const round of [
+    ...mcqRounds,
+    ...fastestFreeTextRounds,
+    ...closestWinsRounds,
+  ]) {
+    const research = getHostContent(round.id).research;
+    assert.ok(research?.length, `${round.id} has no Host briefing`);
+    assert.ok(
+      research.reduce((total, section) => total + (section.items?.length ?? 0), 0) >= 4,
+      `${round.id} needs more Host briefing detail`,
+    );
+  }
+});
+
 test("My Definition awards two for finding truth and one per fooled rival", () => {
   assert.deepEqual(
     scoreDefinitionVotes(

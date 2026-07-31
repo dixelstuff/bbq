@@ -302,6 +302,109 @@ const entries = {
   },
 };
 
+const closestResearch = {
+  "closest-elephant": [
+    "African and Asian elephants both have pregnancies of roughly 22 months; 660 days is the round target used here.",
+    "That long development produces a highly developed calf capable of standing soon after birth.",
+    "Blue and sperm whales are tempting answers for longest mammal pregnancy, but elephants hold the living-land-mammal record.",
+    "Humans average about 280 days, so an elephant pregnancy lasts well over twice as long.",
+  ],
+  "closest-iceland": [
+    "The target is deliberately 400,000 rather than a falsely precise live population figure.",
+    "Iceland’s population passed the 400,000 mark in the mid-2020s.",
+    "Reykjavík city is not the whole capital region; the Greater Reykjavík area contains roughly two-thirds of the country.",
+    "For scale, Iceland has a land area a little over 100,000 km², so it remains one of Europe’s least densely populated countries.",
+  ],
+  "closest-australian-flag": [
+    "Five stars form the Southern Cross on the fly side of the flag.",
+    "The seventh-pointed Commonwealth Star sits below the Union Flag, bringing the visible star total to six.",
+    "The Commonwealth Star originally had six points; a seventh was added in 1908 to represent the territories collectively.",
+    "New Zealand’s flag has four red Southern Cross stars and no Commonwealth Star — a useful comparison if challenged.",
+  ],
+  "closest-london-eye": [
+    "The 32 capsules symbolise London’s 32 boroughs.",
+    "They are numbered up to 33 because number 13 is omitted, so the numbering can mislead observant players.",
+    "The structure is about 135 metres tall and one circuit takes roughly 30 minutes.",
+    "It opened to paying passengers in 2000 and was originally conceived as a millennium landmark.",
+  ],
+  "closest-piano": [
+    "The standard modern piano keyboard has 52 white keys and 36 black keys: 88 total.",
+    "Its range runs from A0 to C8, a little over seven octaves.",
+    "Mozart’s pianos had substantially fewer keys; the standard range expanded as the instrument developed.",
+    "Some specialist concert grands exceed 88 keys, so ‘standard modern piano’ is important wording.",
+  ],
+  "closest-rubiks": [
+    "Six faces × nine coloured facelets gives 54 visible coloured squares.",
+    "The six centre facelets never change position relative to one another, so 48 coloured facelets move around them.",
+    "A standard cube has 26 externally visible cubies: 8 corners, 12 edges and 6 centres.",
+    "The hidden internal core is why ‘54 little cubes’ would be the wrong explanation even though 54 is the answer here.",
+  ],
+  "closest-monopoly": [
+    "A standard classic board has 40 spaces around its perimeter.",
+    "The property system comprises 22 coloured streets, 4 railroads or stations, and 2 utilities.",
+    "The remaining 12 include corners, taxes, Chance and Community Chest spaces.",
+    "Special editions may rename spaces, but the conventional square count stays 40.",
+  ],
+  "closest-tennis-ball": [
+    "Two shaped felt pieces cover a tennis ball.",
+    "Each piece contributes an edge, creating two curved seams joined into the familiar continuous path.",
+    "Players may visually count four arcs; the manufacturing answer is two seams/panel edges, which is the intended interpretation.",
+    "The curve avoids a simple great-circle join and helps produce consistent aerodynamic behaviour.",
+  ],
+  "closest-wine-bottle": [
+    "A standard still-wine bottle is 750 ml in Australia and most major wine markets.",
+    "A half bottle is 375 ml; a magnum is 1.5 L, exactly two standard bottles.",
+    "At a 150 ml restaurant pour, one bottle gives five glasses; larger home pours produce fewer.",
+    "Bottle size is a convention rather than a physical necessity, which is why historical and specialist formats vary.",
+  ],
+  "closest-dice-dots": [
+    "One standard six-sided die contains 1 + 2 + 3 + 4 + 5 + 6 = 21 pips.",
+    "A pair therefore contains 42 pips.",
+    "Opposite faces on a conventional die add to seven: 1–6, 2–5 and 3–4.",
+    "The question asks for all printed dots, not the total showing after a roll.",
+  ],
+  "closest-scrabble": [
+    "The standard English-language Scrabble set contains 100 tiles.",
+    "Of those, 98 carry letters and 2 are blank wild tiles.",
+    "There are 12 E tiles but only one each of J, K, Q, X and Z.",
+    "Other-language editions use different distributions and sometimes different totals, so English-language is essential wording.",
+  ],
+  "closest-adult-bones": [
+    "The conventional adult count is 206 bones.",
+    "Babies are often said to begin with around 270; the number falls as bones fuse during growth.",
+    "Anatomical variations such as extra ribs or sesamoid bones mean an individual person may not have exactly 206.",
+    "The hands and feet alone contain 106 bones — more than half the conventional total.",
+  ],
+  "closest-olympic-pool": [
+    "An Olympic long-course pool is 50 metres long and 25 metres wide.",
+    "Modern championship pools have ten lanes, although the central eight have traditionally been used for racing.",
+    "A short-course pool is 25 metres long, which is the most likely wrong answer.",
+    "Touchpads slightly alter the constructed length so the certified racing distance between timing faces remains exactly 50 metres.",
+  ],
+  "closest-week-minutes": [
+    "Seven days × 24 hours × 60 minutes = 10,080 minutes.",
+    "A useful mental route is 1,440 minutes per day, then multiply by seven.",
+    "The answer assumes an ordinary seven-day civil week; daylight-saving clock changes do not redefine the unit calculation.",
+    "For a quick plausibility check, 10,000 minutes is just under one week because 10,000 ÷ 1,440 is about 6.94 days.",
+  ],
+  "closest-playing-cards": [
+    "A standard French-suited pack has four suits with 13 ranks each: 52 cards.",
+    "Each suit has Ace through 10 plus Jack, Queen and King.",
+    "Jokers are optional extras and are excluded explicitly by the question.",
+    "Tarot, pinochle and regional packs differ, so ‘standard deck without jokers’ fixes the intended convention.",
+  ],
+  "closest-golf-ball": [
+    "There is no compulsory universal dimple count; designs commonly fall between about 300 and 500.",
+    "This round uses 336 as a representative target, not as a rule applying to every ball.",
+    "Dimples reduce aerodynamic drag and help generate lift, allowing a struck ball to travel much farther than a smooth one.",
+    "If someone objects with a real ball carrying another count, agree with them — their product can be correct while 336 remains this estimation target.",
+  ],
+};
+
+for (const [id, items] of Object.entries(closestResearch)) {
+  entries[id].research = [{ title: "Host briefing", items }];
+}
+
 for (const id of [
   "best-vegemite",
   "best-prime-minister",
