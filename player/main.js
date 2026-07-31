@@ -1,12 +1,16 @@
+import "../shared/development.js";
 import "../shared/styles.css";
 import { maintainPlayerPresence } from "../shared/players.js";
+import { restartDatabaseConnection } from "../shared/firebase.js";
 import { observeStep } from "../shared/session-state.js";
 
 const hostPassword = "bigfat";
 const hostAccessKey = "bbq.hostAccess";
 const playerNameKey = "bbq.playerName";
 const playerStepKey = "bbq.currentStep";
-const reconnectDelay = 4000;
+const retryDelay = 5000;
+const failureDelay = 15000;
+const lifecycleDebounce = 150;
 
 const form = document.querySelector("#join-form");
 const input = document.querySelector("#name");
@@ -22,23 +26,29 @@ const hostOpenButton = document.querySelector("#host-open");
 const hostCancelButton = document.querySelector("#host-cancel");
 const playerBadge = document.querySelector("#player-badge");
 const gameConnectionStatus = document.querySelector("#game-connection-status");
+const debugPanel = document.querySelector("#debug-panel");
+const debugConnection = document.querySelector("#debug-connection");
+const debugName = document.querySelector("#debug-name");
+const debugScreen = document.querySelector("#debug-screen");
+const debugReconnect = document.querySelector("#debug-reconnect");
 
 let presence;
 let restoreAttempt;
-let reconnectTimer;
+let retryTimer;
+let failureTimer;
+let lifecycleTimer;
+let stepRetryTimer;
+let stopStepObserver;
+let stepObserverGeneration = 0;
 let restoreController;
+let attemptNumber = 0;
 let currentStep = loadSavedStep();
 
+debugPanel.hidden = !import.meta.env.DEV;
 screen.textContent = `Waiting — screen ${currentStep}`;
+updateDebugPanel();
 
-observeStep((step) => {
-  currentStep = step;
-  saveStep(step);
-  screen.textContent = `Waiting — screen ${step}`;
-  updatePlayerMode();
-}).catch(() => {
-  screen.textContent = "Unable to connect";
-});
+startStepObserver();
 
 const savedName = loadPlayerName();
 updatePlayerMode();
@@ -61,11 +71,13 @@ form.addEventListener("submit", (event) => {
   restorePresence(true);
 });
 
-reconnectButton.addEventListener("click", () => restorePresence(true));
+reconnectButton.addEventListener("click", () => {
+  requestRecovery("manual reconnect", true);
+});
 
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
-    restorePresence(true);
+    requestRecovery("page returned to foreground", true);
   }
 });
 
@@ -73,10 +85,18 @@ document.addEventListener("visibilitychange", () => {
 // full reload. The online event covers the separate network-return lifecycle.
 window.addEventListener("pageshow", (event) => {
   if (event.persisted) {
-    restorePresence(true);
+    requestRecovery("page restored from cache", true);
   }
 });
-window.addEventListener("online", () => restorePresence(true));
+window.addEventListener("online", () => {
+  requestRecovery("network came online", true);
+});
+window.addEventListener("offline", () => {
+  clearTimeout(retryTimer);
+  setConnectionState("Disconnected");
+  logDevelopment("Browser reported that the network is offline.");
+  scheduleFailureMessage();
+});
 
 hostOpenButton.addEventListener("click", () => {
   hostError.textContent = "";
@@ -103,7 +123,70 @@ hostForm.addEventListener("submit", (event) => {
   window.location.assign(hostUrl);
 });
 
-function restorePresence(force = false) {
+function requestRecovery(reason, restartTransport = false) {
+  const name = loadPlayerName();
+
+  if (!name) {
+    return;
+  }
+
+  clearTimeout(lifecycleTimer);
+  lifecycleTimer = window.setTimeout(() => {
+    startStepObserver(true);
+    restorePresence(true, reason, restartTransport);
+  }, lifecycleDebounce);
+}
+
+function startStepObserver(force = false) {
+  if (force) {
+    stopStepObserver?.();
+    stopStepObserver = undefined;
+  } else if (stopStepObserver) {
+    return;
+  }
+
+  clearTimeout(stepRetryTimer);
+  stepObserverGeneration += 1;
+  const generation = stepObserverGeneration;
+
+  observeStep((step) => {
+    if (generation !== stepObserverGeneration) {
+      return;
+    }
+
+    currentStep = step;
+    saveStep(step);
+    screen.textContent = `Waiting — screen ${step}`;
+    updatePlayerMode();
+    updateDebugPanel();
+  })
+    .then((stopObserver) => {
+      if (generation !== stepObserverGeneration) {
+        stopObserver();
+        return;
+      }
+
+      stopStepObserver = stopObserver;
+    })
+    .catch((error) => {
+      if (generation !== stepObserverGeneration) {
+        return;
+      }
+
+      console.error(
+        "[BBQ player] Unable to observe the current screen; retrying.",
+        error,
+      );
+      screen.textContent = "Unable to connect";
+      stepRetryTimer = window.setTimeout(startStepObserver, retryDelay);
+    });
+}
+
+function restorePresence(
+  force = false,
+  reason = "initial player restoration",
+  restartTransport = false,
+) {
   const name = loadPlayerName();
 
   if (!name) {
@@ -120,8 +203,19 @@ function restorePresence(force = false) {
     restoreController?.abort();
   }
 
+  clearRecoveryTimers();
+
+  if (restartTransport) {
+    restartDatabaseConnection();
+  }
+
   const controller = new AbortController();
   restoreController = controller;
+  attemptNumber += 1;
+  const currentAttemptNumber = attemptNumber;
+  const attemptStarted = new Date();
+  debugReconnect.textContent = formatAttempt(attemptStarted, reason);
+  logDevelopment(`Reconnect attempt ${attemptNumber}: ${reason}.`);
 
   // Never carry a previous success message into a new restoration attempt.
   beginReconnecting(name);
@@ -148,26 +242,36 @@ function restorePresence(force = false) {
       }
 
       showConnected(name);
+      logDevelopment(`Presence confirmed for ${name}.`);
     })
     .catch((error) => {
       if (restoreAttempt !== attempt || error?.name === "AbortError") {
         return;
       }
 
-      showReconnectButton(error);
+      console.error(
+        `[BBQ player] Reconnect attempt ${currentAttemptNumber} failed (${reason}); automatic recovery remains active.`,
+        error,
+      );
+      setConnectionState("Reconnecting");
     })
     .finally(() => {
       if (restoreAttempt === attempt) {
         restoreAttempt = undefined;
-        clearTimeout(reconnectTimer);
       }
   });
+
+  retryTimer = window.setTimeout(() => {
+    if (restoreAttempt === attempt || !presence) {
+      restorePresence(true, "automatic recovery watchdog", true);
+    }
+  }, retryDelay);
+
+  scheduleFailureMessage();
 }
 
 function beginReconnecting(name) {
   showReconnecting(name);
-  clearTimeout(reconnectTimer);
-  reconnectTimer = window.setTimeout(showReconnectTimeout, reconnectDelay);
 }
 
 function handlePresenceChange(confirmed) {
@@ -178,15 +282,23 @@ function handlePresenceChange(confirmed) {
   }
 
   if (confirmed) {
-    clearTimeout(reconnectTimer);
+    clearRecoveryTimers();
     showConnected(name);
     return;
   }
 
+  logDevelopment("Firebase presence record is missing; restoring it.");
   beginReconnecting(name);
+  retryTimer = window.setTimeout(() => {
+    restorePresence(true, "presence record disappeared", true);
+  }, retryDelay);
+  scheduleFailureMessage();
 }
 
 function showReconnectTimeout() {
+  failureTimer = undefined;
+  setConnectionState("Disconnected");
+
   if (isGameStarted()) {
     gameConnectionStatus.hidden = false;
     gameConnectionStatus.dataset.error = "true";
@@ -200,6 +312,7 @@ function showReconnectTimeout() {
 }
 
 function showReconnecting(name) {
+  setConnectionState("Reconnecting");
   updateBadge(name);
   input.value = name;
   input.disabled = true;
@@ -212,6 +325,8 @@ function showReconnecting(name) {
 }
 
 function showConnected(name) {
+  clearRecoveryTimers();
+  setConnectionState("Connected");
   updateBadge(name);
   input.value = name;
   input.disabled = true;
@@ -223,20 +338,46 @@ function showConnected(name) {
   gameConnectionStatus.hidden = true;
 }
 
-function showReconnectButton(error) {
-  console.error("Unable to restore player presence", error);
-
-  if (isGameStarted()) {
-    gameConnectionStatus.hidden = false;
-    gameConnectionStatus.dataset.error = "true";
-    gameConnectionStatus.textContent = "Connection lost. Reconnecting…";
+function scheduleFailureMessage() {
+  if (failureTimer) {
     return;
   }
 
-  joinButton.hidden = true;
-  reconnectButton.hidden = false;
-  status.dataset.error = "true";
-  status.textContent = "You’re disconnected. Tap below to reconnect.";
+  failureTimer = window.setTimeout(showReconnectTimeout, failureDelay);
+}
+
+function clearRecoveryTimers() {
+  clearTimeout(retryTimer);
+  clearTimeout(failureTimer);
+  retryTimer = undefined;
+  failureTimer = undefined;
+}
+
+function setConnectionState(connectionState) {
+  debugConnection.textContent = connectionState;
+  debugConnection.dataset.state = connectionState.toLowerCase();
+  updateDebugPanel();
+}
+
+function updateDebugPanel() {
+  debugName.textContent = loadPlayerName() || "Not joined";
+  debugScreen.textContent = String(currentStep);
+}
+
+function formatAttempt(date, reason) {
+  return `${date.toLocaleTimeString()} — ${reason}`;
+}
+
+function logDevelopment(message, details) {
+  if (!import.meta.env.DEV) {
+    return;
+  }
+
+  if (details) {
+    console.info(`[BBQ development] ${message}`, details);
+  } else {
+    console.info(`[BBQ development] ${message}`);
+  }
 }
 
 function isGameStarted() {
@@ -269,6 +410,7 @@ function loadPlayerName() {
   try {
     return localStorage.getItem(playerNameKey)?.trim() || "";
   } catch {
+    console.error("[BBQ player] Unable to read the saved player name.");
     return "";
   }
 }
@@ -276,7 +418,8 @@ function loadPlayerName() {
 function savePlayerName(name) {
   try {
     localStorage.setItem(playerNameKey, name);
-  } catch {
+  } catch (error) {
+    console.error("[BBQ player] Unable to save the player name.", error);
     // Storage can be unavailable in strict private-browsing modes. The player
     // can still join for the lifetime of the page.
   }
@@ -286,7 +429,8 @@ function loadSavedStep() {
   try {
     const step = Number.parseInt(localStorage.getItem(playerStepKey), 10);
     return Number.isInteger(step) && step >= 1 ? step : 1;
-  } catch {
+  } catch (error) {
+    console.error("[BBQ player] Unable to read the saved screen.", error);
     return 1;
   }
 }
@@ -294,7 +438,8 @@ function loadSavedStep() {
 function saveStep(step) {
   try {
     localStorage.setItem(playerStepKey, String(step));
-  } catch {
+  } catch (error) {
+    console.error("[BBQ player] Unable to save the current screen.", error);
     // The live Firebase value remains authoritative when storage is unavailable.
   }
 }

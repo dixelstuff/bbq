@@ -1,20 +1,23 @@
-import "../shared/styles.css";
+import "../shared/development.js";
+import "./styles.css";
 import QRCode from "qrcode";
 import { observePlayers } from "../shared/players.js";
 import { observeStep } from "../shared/session-state.js";
 
 const joinUrl = "https://dixelstuff.github.io/bbq/";
-const playerCount = document.querySelector("#player-count");
-const playerNames = document.querySelector("#player-names");
+const waitingScreen = document.querySelector("#waiting-screen");
+const gameScreen = document.querySelector("#game-screen");
+const waitingPlayerCount = document.querySelector("#waiting-player-count");
+const gamePlayerCount = document.querySelector("#game-player-count");
 const qrCanvas = document.querySelector("#join-qr");
 const screen = document.querySelector("#screen");
 
 QRCode.toCanvas(qrCanvas, joinUrl, {
-  width: 320,
+  width: 520,
   margin: 2,
   color: {
-    dark: "#181816",
-    light: "#ffffff",
+    dark: "#08211a",
+    light: "#f4fff8",
   },
 }).catch((error) => {
   console.error("Unable to generate join QR code", error);
@@ -22,25 +25,22 @@ QRCode.toCanvas(qrCanvas, joinUrl, {
 
 observePlayers((players) => {
   const count = players.length;
-  playerCount.textContent = `${count} ${
-    count === 1 ? "player" : "players"
-  } connected`;
-
-  playerNames.replaceChildren(
-    ...players.map((player) => {
-      const item = document.createElement("li");
-      item.textContent = player.name;
-      return item;
-    }),
-  );
+  waitingPlayerCount.textContent = `${count} ${count === 1 ? "PLAYER" : "PLAYERS"}`;
+  gamePlayerCount.textContent = `${count} ${count === 1 ? "player" : "players"}`;
 }).catch((error) => {
   console.error("Unable to observe players", error);
-  playerCount.textContent = "Unable to connect";
+  waitingPlayerCount.textContent = "OFFLINE";
+  gamePlayerCount.textContent = "Offline";
 });
 
 observeStep((step) => {
-  screen.textContent = `Screen ${step}`;
+  const waiting = step === 1;
+  waitingScreen.hidden = !waiting;
+  gameScreen.hidden = waiting;
+  screen.textContent = `SCREEN ${step}`;
 }).catch((error) => {
   console.error("Unable to observe session step", error);
-  screen.textContent = "Unable to connect";
+  waitingScreen.hidden = true;
+  gameScreen.hidden = false;
+  screen.textContent = "OFFLINE";
 });

@@ -16,6 +16,11 @@ The recommended workflow on the Mac is to double-click `Launch BBQ.command`.
 It updates `/Users/andrew/bbq`, installs any changed dependencies, and starts
 only the local Display.
 
+Local Vite development pages clear their local and session storage when they
+load, so development checks begin from a known state. Production GitHub Pages
+storage is never cleared. The local Player development page also includes a
+small connection diagnostics panel.
+
 The equivalent Terminal commands are:
 
 ```sh
@@ -40,6 +45,10 @@ sessions/default/
 
 Each player record contains a name and a joined timestamp. The record is removed
 automatically when that player's Firebase connection closes.
+
+Firebase Anonymous Authentication is stored independently by each browser, so
+Safari, Chrome, and other browser profiles act as separate players. Tabs in the
+same browser profile intentionally represent the same player.
 
 The shared numeric step starts at `1`. The host can advance or reset it, and all
 three applications receive updates live.

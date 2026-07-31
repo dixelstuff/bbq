@@ -88,13 +88,19 @@ export async function maintainPlayerPresence(
     return writeQueue;
   }
 
+  function logTransientError(error) {
+    if (import.meta.env.DEV) {
+      console.warn("[BBQ development] Transient presence write failed.", error);
+    }
+  }
+
   stopConnectionObserver = onValue(
     ref(database, connectedPath),
     (snapshot) => {
       connected = snapshot.val() === true;
 
       if (connected) {
-        queuePresenceWrite().catch(() => {});
+        queuePresenceWrite().catch(logTransientError);
       }
     },
     rejectConfirmations,
@@ -109,7 +115,7 @@ export async function maintainPlayerPresence(
       // An old connection can finish its delayed onDisconnect after a new
       // connection has already restored the same player record.
       if (!confirmed && connected) {
-        queuePresenceWrite().catch(() => {});
+        queuePresenceWrite().catch(logTransientError);
       }
     },
     rejectConfirmations,
@@ -125,7 +131,7 @@ export async function maintainPlayerPresence(
       pendingConfirmations.push({ resolve, reject });
 
       if (connected) {
-        queuePresenceWrite().catch(() => {});
+        queuePresenceWrite().catch(logTransientError);
       }
     });
   }

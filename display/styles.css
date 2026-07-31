@@ -1,0 +1,76 @@
+:root {
+  color: #f4fff8;
+  background: #08211a;
+  font-family:
+    Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+.display,
+.waiting-screen,
+.game-screen {
+  min-height: 100vh;
+}
+
+.waiting-screen {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: clamp(2rem, 6vh, 5rem);
+  padding: 4rem;
+}
+
+#join-qr {
+  width: min(52vh, 44vw, 32.5rem);
+  height: auto;
+  border-radius: 1rem;
+}
+
+.waiting-player-count {
+  margin: 0;
+  color: #a8f0ce;
+  font-size: clamp(3rem, 8vw, 7rem);
+  font-weight: 750;
+  letter-spacing: -0.05em;
+  line-height: 0.9;
+}
+
+.game-screen {
+  display: grid;
+  place-items: center;
+  padding: 4rem;
+}
+
+.game-screen h1 {
+  margin: 0;
+  color: #f4fff8;
+  font-size: clamp(5rem, 16vw, 15rem);
+  font-weight: 720;
+  letter-spacing: -0.06em;
+  line-height: 0.85;
+}
+
+.game-player-count {
+  position: fixed;
+  top: 2rem;
+  right: 2.5rem;
+  margin: 0;
+  color: #8eb9a7;
+  font-size: clamp(1rem, 2vw, 1.5rem);
+}

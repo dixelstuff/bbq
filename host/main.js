@@ -1,3 +1,4 @@
+import "../shared/development.js";
 import "../shared/styles.css";
 import { observePlayers } from "../shared/players.js";
 import {
@@ -24,13 +25,15 @@ observePlayers((players) => {
 
   emptyState.hidden = players.length > 0;
   playerList.hidden = players.length === 0;
-}).catch(() => {
+}).catch((error) => {
+  console.error("[BBQ host] Unable to observe players.", error);
   emptyState.textContent = "Unable to connect to Firebase.";
 });
 
 observeStep((step) => {
   stepLabel.textContent = `Step ${step}`;
-}).catch(() => {
+}).catch((error) => {
+  console.error("[BBQ host] Unable to observe the current step.", error);
   stepLabel.textContent = "Unable to connect to Firebase.";
 });
 

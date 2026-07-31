@@ -5,7 +5,7 @@ import {
   setPersistence,
   signInAnonymously,
 } from "firebase/auth";
-import { getDatabase } from "firebase/database";
+import { getDatabase, goOffline, goOnline } from "firebase/database";
 
 const firebaseConfig = {
   apiKey: "AIzaSyD-oRUweSg1pHQiu7NDGnd0cSJvyMJE_gQ",
@@ -43,4 +43,12 @@ export function signIn() {
   }
 
   return signInPromise;
+}
+
+export function restartDatabaseConnection() {
+  // Safari can retain a socket that looks alive after backgrounding or a
+  // network change. Cycling Firebase's transport forces a new connection and
+  // causes all Realtime Database listeners to resynchronise.
+  goOffline(database);
+  goOnline(database);
 }
