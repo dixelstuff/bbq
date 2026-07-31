@@ -29,6 +29,8 @@ let reconnectTimer;
 let restoreController;
 let currentStep = loadSavedStep();
 
+screen.textContent = `Waiting — screen ${currentStep}`;
+
 observeStep((step) => {
   currentStep = step;
   saveStep(step);
