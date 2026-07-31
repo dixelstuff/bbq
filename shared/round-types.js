@@ -24,6 +24,12 @@ export const mediaVisibility = {
   both: "both",
 };
 
+export function usesProgressiveFreeTextReveal(round) {
+  return [roundTypes.fastestFreeText, roundTypes.bestFreeText].includes(
+    round?.type,
+  );
+}
+
 export function mediaForAudience(round, audience, slot = "question") {
   const media = round?.media?.[slot] ?? round?.media;
   if (!media) return undefined;

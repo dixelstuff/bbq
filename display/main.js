@@ -11,6 +11,7 @@ import {
   formatNumericAnswer,
   mediaForAudience,
   roundTypes,
+  usesProgressiveFreeTextReveal,
 } from "../shared/round-types.js";
 import { displayModes, displayModeForPhase } from "../shared/display-modes.js";
 import {
@@ -59,6 +60,8 @@ const enableAudioButton = document.querySelector("#enable-audio");
 let players = [];
 let gameSnapshot;
 let groupingSnapshot = { groups: [] };
+let progressiveRevealRoundKey;
+let progressiveRevealCount = 0;
 
 await ensureSessionRelease(releaseId, releaseOrder);
 setupDisplayAudio(enableAudioButton);
@@ -204,25 +207,50 @@ function renderGame(snapshot) {
         : definition.type === roundTypes.myDefinition
           ? `${definition.word}: ${revealedAnswer ?? ""}`
           : revealedAnswer ?? "";
-    const visibleSubmissions = submissions.slice(0, round?.revealCount ?? 0);
-    const showPoints = Boolean(round?.revealPoints);
+    const progressive = usesProgressiveFreeTextReveal(definition);
+    const revealCount = progressive
+      ? round?.revealCount ?? 0
+      : submissions.length;
+    const visibleSubmissions = submissions.slice(0, revealCount);
+    const showPoints = progressive ? Boolean(round?.revealPoints) : true;
+    const revealKey = `${definition.id}:${round?.startedAt ?? ""}`;
+    const newAnswerArrived =
+      progressive &&
+      (revealKey !== progressiveRevealRoundKey ||
+        revealCount > progressiveRevealCount);
+    const justSettledIndex =
+      progressive &&
+      revealKey === progressiveRevealRoundKey &&
+      revealCount === progressiveRevealCount + 1
+        ? revealCount - 2
+        : -1;
+    revealAnswers.classList.toggle("free-text-stage", progressive);
     revealAnswers.replaceChildren(
-      ...visibleSubmissions.map((submission) => {
+      ...visibleSubmissions.map((submission, index) => {
         const item = document.createElement("li");
         item.className = submission.status;
-        if (definition.type === roundTypes.closestWins) {
+        if (progressive) {
+          item.className = `free-text-card${
+            index === visibleSubmissions.length - 1 ? " is-featured" : ""
+          }${
+            index === visibleSubmissions.length - 1 && newAnswerArrived
+              ? " is-arriving"
+              : ""
+          }${index === justSettledIndex ? " just-settled" : ""}`;
+          item.innerHTML = `<strong>${escapeHtml(
+            submission.playerName,
+          )}</strong><span class="free-text-answer">${escapeHtml(
+            submission.answer,
+          )}</span><span class="points-badge${
+            showPoints ? " is-visible" : ""
+          }">+${submission.points ?? 0}</span>`;
+        } else if (definition.type === roundTypes.closestWins) {
           item.className = "closest-result";
           item.innerHTML = `<strong>${submission.placing}</strong><strong>${escapeHtml(
             submission.playerName,
           )}</strong><span>${escapeHtml(submission.answer)}</span><strong>${
             showPoints ? `+${submission.points ?? 0}` : ""
           }</strong>`;
-        } else if (definition.type === roundTypes.bestFreeText) {
-          item.innerHTML = `<strong>${escapeHtml(
-            submission.playerName,
-          )}</strong><span>${escapeHtml(submission.answer)}</span><span>${
-            showPoints ? `+${submission.points ?? 0}` : ""
-          }</span>`;
         } else if (definition.type === roundTypes.myDefinition) {
           const points =
             round?.definitionScores?.[submission.playerId] ?? 0;
@@ -243,6 +271,13 @@ function renderGame(snapshot) {
         return item;
       }),
     );
+    if (progressive) {
+      progressiveRevealRoundKey = revealKey;
+      progressiveRevealCount = revealCount;
+    } else {
+      progressiveRevealRoundKey = undefined;
+      progressiveRevealCount = 0;
+    }
     return;
   }
 

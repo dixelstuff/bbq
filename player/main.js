@@ -22,6 +22,7 @@ import {
   formatNumericAnswer,
   mediaForAudience,
   roundTypes,
+  usesProgressiveFreeTextReveal,
 } from "../shared/round-types.js";
 
 const playerNameKey = "bbq.playerName";
@@ -787,7 +788,11 @@ function renderPlayerGame() {
 
   waitingMessage.textContent = "Waiting for next round…";
 
-  if (phase === phases.reveal && submission && gameSnapshot?.round?.revealPoints) {
+  if (
+    phase === phases.reveal &&
+    submission &&
+    (!usesProgressiveFreeTextReveal(definition) || gameSnapshot?.round?.revealPoints)
+  ) {
     playerResult.hidden = false;
     if (definition?.type === roundTypes.closestWins) {
       playerResult.innerHTML = `<strong>Your answer: ${escapeHtml(

@@ -46,7 +46,10 @@ import {
 } from "../shared/grouping.js";
 import { observePlayers } from "../shared/players.js";
 import { releaseId, releaseOrder } from "../shared/release.js";
-import { roundTypes } from "../shared/round-types.js";
+import {
+  roundTypes,
+  usesProgressiveFreeTextReveal,
+} from "../shared/round-types.js";
 import {
   ensureSessionRelease,
   resetGame,
@@ -58,6 +61,7 @@ import {
   getHostContent,
 } from "./rounds/demo-night/content.js";
 import { remainingTimerSeconds } from "../shared/presentation.js";
+import { hostSubmissionLabel } from "./marking-presentation.js";
 
 const nextButton = document.querySelector("#next");
 const joinedCount = document.querySelector("#joined-count");
@@ -201,11 +205,16 @@ nextButton.addEventListener("click", async () => {
     gameSnapshot?.definition?.type === roundTypes.myDefinition;
   const revealCount = gameSnapshot?.round?.revealCount ?? 0;
   const revealTotal = gameSnapshot?.submissions?.length ?? 0;
-  const revealAction = revealCount < revealTotal
-    ? revealNextAnswer
-    : !gameSnapshot?.round?.revealPoints && revealTotal > 0
-      ? revealRoundPoints
-      : finishRound;
+  const progressiveReveal = usesProgressiveFreeTextReveal(
+    gameSnapshot?.definition,
+  );
+  const revealAction = !progressiveReveal
+    ? finishRound
+    : revealCount < revealTotal
+      ? revealNextAnswer
+      : !gameSnapshot?.round?.revealPoints && revealTotal > 0
+        ? revealRoundPoints
+        : finishRound;
   const action = {
     [phases.lobby]: () => beginRound(roundSelect.value),
     [phases.opening]: openRoundQuestion,
@@ -464,11 +473,13 @@ function renderGame(snapshot) {
     [phases.voting]: "CLOSE VOTING & REVEAL",
     [phases.reveal]: isSpelling
       ? "NEXT PLAYER"
-      : (round?.revealCount ?? 0) < submissions.length
-        ? "REVEAL NEXT ANSWER"
-        : !round?.revealPoints && submissions.length > 0
-          ? "REVEAL POINTS"
-          : "NEXT QUESTION",
+      : !usesProgressiveFreeTextReveal(definition)
+        ? "NEXT QUESTION"
+        : (round?.revealCount ?? 0) < submissions.length
+          ? "REVEAL NEXT ANSWER"
+          : !round?.revealPoints && submissions.length > 0
+            ? "REVEAL POINTS"
+            : "NEXT QUESTION",
     [phases.leaderboard]: "RETURN TO ROUND",
     [phases.intermission]: "START SELECTED ROUND",
   };
@@ -487,12 +498,15 @@ function renderGame(snapshot) {
   ].includes(state.phase);
   const stagedReveal =
     state.phase === phases.reveal &&
-    !isSpelling &&
+    usesProgressiveFreeTextReveal(definition) &&
     submissions.length > 0;
   revealControls.hidden = !stagedReveal;
   revealNextButton.disabled =
     !stagedReveal || (round?.revealCount ?? 0) >= submissions.length;
-  revealPointsButton.disabled = !stagedReveal || Boolean(round?.revealPoints);
+  revealPointsButton.disabled =
+    !stagedReveal ||
+    (round?.revealCount ?? 0) < submissions.length ||
+    Boolean(round?.revealPoints);
 }
 
 function updateDisconnectedWarning(
@@ -746,13 +760,7 @@ function renderSubmissions(submissions, phase) {
       const controls = document.createElement("div");
 
       item.className = `submission-row ${submission.status}`;
-      const prefix = submission.placing
-        ? `${submission.placing}.`
-        : `${index + 1}.`;
-      const blindMarking = phase === phases.marking;
-      const answerLabel = blindMarking
-        ? `ANSWER ${index + 1}`
-        : `${prefix} ${submission.playerName}`;
+      const answerLabel = hostSubmissionLabel(submission, index, phase);
       answer.innerHTML = `<strong>${escapeHtml(
         answerLabel,
       )}</strong><span>${escapeHtml(submission.answer)}</span>`;

@@ -8,6 +8,7 @@ import {
   scoreRound,
   scoreDefinitionVotes,
   shouldAutoCloseRound,
+  usesProgressiveFreeTextReveal,
 } from "./round-types.js";
 import { validSessionState } from "./session-state.js";
 import {
@@ -877,8 +878,8 @@ export async function closeDefinitionVoting() {
       round: {
         ...session.round,
         definitionScores: awards,
-        revealCount: 0,
-        revealPoints: false,
+        revealCount: Object.keys(session.round?.submissions ?? {}).length,
+        revealPoints: true,
         result: {
           word: definition.word,
           definition: realOption?.text ?? "",
@@ -918,6 +919,7 @@ export async function scoreAndReveal() {
         ? ordered
         : scoreRound(roundDefinition, ordered);
     const submissions = { ...(session.round?.submissions ?? {}) };
+    const progressiveReveal = usesProgressiveFreeTextReveal(roundDefinition);
     const players = applyRoundScores(session.players ?? {}, scored);
 
     for (const submission of scored) {
@@ -935,8 +937,8 @@ export async function scoreAndReveal() {
       round: {
         ...session.round,
         submissions,
-        revealCount: 0,
-        revealPoints: false,
+        revealCount: progressiveReveal ? 0 : scored.length,
+        revealPoints: !progressiveReveal,
       },
       state: {
         ...state,
