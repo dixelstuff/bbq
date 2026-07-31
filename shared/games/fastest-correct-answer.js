@@ -1,3 +1,5 @@
+import { roundTypes, scoringStrategies } from "../round-types.js";
+
 const placeholderAnimalImage = new URL(
   "../../media/images/placeholder-animal.svg",
   import.meta.url,
@@ -9,6 +11,17 @@ export const fastestCorrectAnswerGame = {
   rounds: [
     {
       id: "animal-1",
+      type: roundTypes.fastestFreeText,
+      typeLabel: "FASTEST FREE TEXT",
+      submission: {
+        expectsEveryConnectedPlayer: true,
+        autoCloseWhenComplete: true,
+      },
+      scoring: {
+        strategy: scoringStrategies.fastestCorrect,
+        firstCorrectPoints: 2,
+        otherCorrectPoints: 1,
+      },
       question: "What animal is this?",
       image: placeholderAnimalImage,
       imageAlt: "An illustrated grey koala among eucalyptus leaves",

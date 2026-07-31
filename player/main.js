@@ -19,7 +19,6 @@ const playerStepKey = "bbq.currentStep";
 const retryDelay = 5000;
 const failureDelay = 12000;
 const lifecycleDebounce = 150;
-const nameDebounce = 350;
 
 const form = document.querySelector("#join-form");
 const input = document.querySelector("#name");
@@ -41,7 +40,6 @@ const debugName = document.querySelector("#debug-name");
 const debugScreen = document.querySelector("#debug-screen");
 const debugReconnect = document.querySelector("#debug-reconnect");
 const waitingView = document.querySelector("#waiting-view");
-const waitingName = document.querySelector("#waiting-name");
 const questionView = document.querySelector("#question-view");
 const questionImage = document.querySelector("#question-image");
 const questionText = document.querySelector("#question-text");
@@ -64,7 +62,6 @@ let restoreController;
 let retryTimer;
 let failureTimer;
 let lifecycleTimer;
-let nameTimer;
 let stepRetryTimer;
 let stopStateObserver;
 let stateObserverGeneration = 0;
@@ -87,19 +84,7 @@ startHostObserver();
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  clearTimeout(nameTimer);
   await submitName(input.value);
-});
-
-input.addEventListener("input", () => {
-  if (!joined || currentState.step !== 1) {
-    return;
-  }
-
-  clearTimeout(nameTimer);
-  nameTimer = window.setTimeout(() => {
-    submitName(input.value, true);
-  }, nameDebounce);
 });
 
 refreshButton.addEventListener("click", () => {
@@ -179,13 +164,11 @@ hostForm.addEventListener("submit", (event) => {
   window.location.assign(hostUrl);
 });
 
-async function submitName(rawName, quiet = false) {
-  const name = rawName.trim();
+async function submitName(rawName) {
+  const name = rawName.trim().toUpperCase();
 
   if (!name) {
-    if (!quiet) {
-      input.focus();
-    }
+    input.focus();
     return;
   }
 
@@ -194,11 +177,9 @@ async function submitName(rawName, quiet = false) {
     return;
   }
 
-  if (!quiet) {
-    joinButton.disabled = true;
-    status.dataset.error = "false";
-    status.textContent = joined ? "Updating name…" : "Joining…";
-  }
+  joinButton.disabled = true;
+  status.dataset.error = "false";
+  status.textContent = joined ? "Updating name…" : "Joining…";
 
   try {
     const player = await savePlayerNameToFirebase(name);
@@ -214,7 +195,7 @@ async function submitName(rawName, quiet = false) {
 
     if (!presence && !restoreAttempt) {
       restorePresence(false, "player joined");
-    } else if (!quiet) {
+    } else {
       showConnected(player.name);
     }
   } catch (error) {
@@ -225,12 +206,10 @@ async function submitName(rawName, quiet = false) {
     }
 
     console.error("[BBQ player] Unable to save the player name.", error);
-    if (!quiet) {
-      status.dataset.error = "true";
-      status.textContent = "Couldn’t save that name. Please try again.";
-    }
+    status.dataset.error = "true";
+    status.textContent = "Couldn’t save that name. Please try again.";
   } finally {
-    if (!quiet && currentState.step === 1) {
+    if (currentState.step === 1) {
       joinButton.disabled = false;
     }
   }
@@ -551,7 +530,6 @@ function showConnected(name) {
 }
 
 function showNameLocked() {
-  clearTimeout(nameTimer);
   input.value = loadPlayerName();
   input.disabled = true;
   joinButton.disabled = true;
@@ -615,8 +593,6 @@ function renderPlayerGame() {
   if (!joined || currentState.step === 1) {
     return;
   }
-
-  waitingName.textContent = loadPlayerName();
 
   if (phase === phases.question && definition) {
     questionView.hidden = false;

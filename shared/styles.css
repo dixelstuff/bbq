@@ -81,6 +81,10 @@ input {
   outline: none;
 }
 
+#name {
+  text-transform: uppercase;
+}
+
 input:focus {
   border-color: #181816;
   box-shadow: 0 0 0 3px rgb(24 24 22 / 10%);
@@ -251,31 +255,75 @@ dialog::backdrop {
   font-size: 1.05rem;
 }
 
-.host-player {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 1rem;
-  align-items: center;
-  border-bottom: 1px solid #dedbd3;
-  padding: 0.65rem 0;
-}
-
-.host-player.disconnected {
-  color: #8a8881;
-}
-
-.connection-label {
-  border-radius: 999px;
-  padding: 0.25rem 0.55rem;
-  background: #dcecdf;
-  color: #287441;
-  font-size: 0.75rem;
-  font-weight: 650;
-}
-
-.host-player.disconnected .connection-label {
-  background: #f1d9d6;
+.disconnected-warning {
+  border: 1px solid #e7b5af;
+  border-radius: 0.75rem;
+  padding: 0.85rem 1rem;
+  background: #fff3f1;
   color: #a3261e;
+}
+
+.disconnected-warning h3 {
+  margin-bottom: 0.45rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+}
+
+.disconnected-warning ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-weight: 700;
+}
+
+.simulator-panel {
+  border: 1px dashed #9a9488;
+  border-radius: 0.9rem;
+  padding: 1rem;
+  background: #f7f5f0;
+}
+
+.simulator-panel h2 small {
+  color: #6b6962;
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+}
+
+.simulator-controls,
+.simulated-player {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: end;
+}
+
+.simulator-controls label {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.simulator-controls input {
+  width: 9rem;
+  min-height: 2.5rem;
+}
+
+.simulated-players {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.simulated-player {
+  display: grid;
+  grid-template-columns: auto 1fr repeat(3, minmax(5rem, auto));
+  align-items: center;
+  padding: 0.45rem 0;
+  border-top: 1px solid #dedbd3;
+  font-size: 0.8rem;
+}
+
+.simulated-player input {
+  width: auto;
+  min-height: auto;
 }
 
 .debug-panel {
@@ -329,13 +377,6 @@ dialog::backdrop {
   font-weight: 800;
   letter-spacing: 0.08em;
   animation: bbq-pulse 2.2s ease-in-out infinite;
-}
-
-.waiting-name {
-  border: 1px solid #cfccc4;
-  border-radius: 999px;
-  padding: 0.45rem 0.85rem;
-  color: #6b6962;
 }
 
 .game-image {

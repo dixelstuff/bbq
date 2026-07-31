@@ -7,6 +7,8 @@
     "dev": "vite",
     "display": "vite --config vite.display.config.js --open",
     "build": "vite build",
+    "build:display": "vite build --config vite.display.config.js",
+    "test": "node --test",
     "preview": "vite preview"
   },
   "dependencies": {

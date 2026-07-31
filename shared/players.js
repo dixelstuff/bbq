@@ -22,7 +22,15 @@ export class NameLockedError extends Error {
   }
 }
 
+export function normalizePlayerName(name) {
+  return String(name ?? "").trim().toUpperCase();
+}
+
 export async function savePlayerName(name) {
+  const normalizedName = normalizePlayerName(name);
+  if (!normalizedName) {
+    throw new Error("Player name is required");
+  }
   const user = await signIn();
   const sessionRef = ref(database, sessionPath);
   let rejectedState;
@@ -63,7 +71,7 @@ export async function savePlayerName(name) {
         ...players,
         [user.uid]: {
           ...existing,
-          name,
+          name: normalizedName,
           generation: state.generation,
           joinedAt: existing?.joinedAt ?? Date.now(),
           updatedAt: Date.now(),

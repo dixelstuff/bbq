@@ -29,8 +29,26 @@
 
       <section class="stack" aria-labelledby="players-heading">
         <h2 id="players-heading">Players</h2>
-        <p id="empty-state">Waiting for players...</p>
-        <ol id="players" hidden></ol>
+        <p id="joined-count">0 players joined</p>
+        <section id="disconnected-warning" class="disconnected-warning" hidden>
+          <h3>DISCONNECTED</h3>
+          <ul id="disconnected-players"></ul>
+        </section>
+      </section>
+
+      <section id="simulator-panel" class="simulator-panel stack" hidden>
+        <h2>Player simulator <small>DEVELOPMENT</small></h2>
+        <div class="simulator-controls">
+          <label>Players <input id="sim-count" type="number" min="1" max="30" value="3" /></label>
+          <button id="sim-add" class="secondary" type="button">ADD PLAYERS</button>
+          <button id="sim-remove" class="danger secondary" type="button">REMOVE ALL</button>
+        </div>
+        <div class="simulator-controls">
+          <label>Answer <input id="sim-answer" type="text" value="KOALA" /></label>
+          <label>Stagger ms <input id="sim-delay" type="number" min="0" value="250" /></label>
+          <button id="sim-submit" class="secondary" type="button">SUBMIT ALL</button>
+        </div>
+        <div id="simulated-players" class="simulated-players"></div>
       </section>
 
       <section id="host-game" class="host-game stack" hidden>
@@ -38,6 +56,7 @@
         <h2 id="host-question"></h2>
         <p><strong>Correct answer:</strong> <span id="correct-answer"></span></p>
         <p id="notes" class="host-notes"></p>
+        <p id="round-type" class="eyebrow"></p>
       </section>
 
       <section class="stack">

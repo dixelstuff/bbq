@@ -6,6 +6,7 @@ import {
   finishGame,
   markAllRemaining,
   markSubmission,
+  maybeAutoCloseAnswers,
   observeGame,
   phases,
   scoreAndReveal,
@@ -15,9 +16,10 @@ import { maintainHostPresence } from "../shared/host-presence.js";
 import { observePlayers } from "../shared/players.js";
 import { resetGame } from "../shared/session-state.js";
 
-const emptyState = document.querySelector("#empty-state");
 const nextButton = document.querySelector("#next");
-const playerList = document.querySelector("#players");
+const joinedCount = document.querySelector("#joined-count");
+const disconnectedWarning = document.querySelector("#disconnected-warning");
+const disconnectedPlayers = document.querySelector("#disconnected-players");
 const resetButton = document.querySelector("#reset-game");
 const resetDialog = document.querySelector("#reset-dialog");
 const resetConfirmButton = document.querySelector("#reset-confirm");
@@ -30,6 +32,7 @@ const gameImage = document.querySelector("#host-game-image");
 const questionText = document.querySelector("#host-question");
 const correctAnswer = document.querySelector("#correct-answer");
 const notes = document.querySelector("#notes");
+const roundType = document.querySelector("#round-type");
 const submissionsHeading = document.querySelector("#submissions-heading");
 const submissionsList = document.querySelector("#submissions");
 const emptySubmissions = document.querySelector("#empty-submissions");
@@ -38,6 +41,8 @@ const markAllCorrectButton = document.querySelector("#mark-all-correct");
 const markAllIncorrectButton = document.querySelector("#mark-all-incorrect");
 
 let gameSnapshot;
+let latestPlayers = [];
+let autoClosePending = false;
 
 maintainHostPresence().catch((error) => {
   console.error("[BBQ host] Unable to register Host presence.", error);
@@ -45,12 +50,23 @@ maintainHostPresence().catch((error) => {
 
 observePlayers(renderPlayers).catch((error) => {
   console.error("[BBQ host] Unable to observe players.", error);
-  emptyState.textContent = "Unable to connect to Firebase.";
+  joinedCount.textContent = "Unable to connect to Firebase.";
 });
 
 observeGame((snapshot) => {
   gameSnapshot = snapshot;
   renderGame(snapshot);
+  renderSimulatorPlayers();
+  if (snapshot.state.phase === phases.question && !autoClosePending) {
+    autoClosePending = true;
+    maybeAutoCloseAnswers()
+      .catch((error) =>
+        console.error("[BBQ host] Automatic answer close failed.", error),
+      )
+      .finally(() => {
+        autoClosePending = false;
+      });
+  }
 }).catch((error) => {
   console.error("[BBQ host] Unable to observe the game.", error);
   phaseLabel.textContent = "Unable to connect to Firebase.";
@@ -106,25 +122,20 @@ resetConfirmButton.addEventListener("click", async () => {
 });
 
 function renderPlayers(players) {
-  playerList.replaceChildren(
-    ...players.map((player) => {
+  latestPlayers = players;
+  const disconnected = players.filter((player) => !player.connected);
+  joinedCount.textContent = `${players.length} ${
+    players.length === 1 ? "player" : "players"
+  } joined`;
+  disconnectedPlayers.replaceChildren(
+    ...disconnected.map((player) => {
       const item = document.createElement("li");
-      const name = document.createElement("span");
-      const connection = document.createElement("span");
-
-      item.className = player.connected
-        ? "host-player connected"
-        : "host-player disconnected";
-      name.textContent = `${player.name} · ${player.score ?? 0} pts`;
-      connection.className = "connection-label";
-      connection.textContent = player.connected ? "Connected" : "Disconnected";
-      item.append(name, connection);
+      item.textContent = `${player.name}${player.simulated ? " · SIMULATED" : ""}`;
       return item;
     }),
   );
-
-  emptyState.hidden = players.length > 0;
-  playerList.hidden = players.length === 0;
+  disconnectedWarning.hidden = disconnected.length === 0;
+  renderSimulatorPlayers();
 }
 
 function renderGame(snapshot) {
@@ -145,6 +156,7 @@ function renderGame(snapshot) {
     questionText.textContent = definition.question;
     correctAnswer.textContent = definition.answer;
     notes.textContent = definition.notes;
+    roundType.textContent = definition.typeLabel;
     renderSubmissions(submissions, state.phase);
   }
 
@@ -159,6 +171,85 @@ function renderGame(snapshot) {
 
   nextButton.textContent = nextLabels[state.phase] ?? "NEXT";
   nextButton.disabled = state.phase === phases.intermission;
+}
+
+const simulatorPanel = document.querySelector("#simulator-panel");
+let simulatorApi;
+
+if (import.meta.env.DEV) {
+  simulatorPanel.hidden = false;
+  import("../shared/simulator.js").then((api) => {
+    simulatorApi = api;
+    setupSimulatorControls();
+  }).catch((error) => {
+    console.error("[BBQ host] Unable to load the player simulator.", error);
+    simulatorPanel.querySelectorAll("button, input").forEach((control) => {
+      control.disabled = true;
+    });
+  });
+} else {
+  simulatorPanel.remove();
+}
+
+function setupSimulatorControls() {
+  document.querySelector("#sim-add").addEventListener("click", (event) =>
+    runAction(event.currentTarget, () =>
+      simulatorApi.addSimulatedPlayers(document.querySelector("#sim-count").value),
+    ),
+  );
+  document.querySelector("#sim-remove").addEventListener("click", (event) =>
+    runAction(event.currentTarget, () => simulatorApi.removeAllSimulatedPlayers()),
+  );
+  document.querySelector("#sim-submit").addEventListener("click", (event) =>
+    runAction(event.currentTarget, () =>
+      simulatorApi.submitAllSimulatedAnswers(
+        simulatorPlayers(),
+        document.querySelector("#sim-answer").value,
+        Number(document.querySelector("#sim-delay").value),
+      ),
+    ),
+  );
+  document.querySelector("#simulated-players").addEventListener("change", (event) => {
+    const input = event.target.closest("input[data-sim-player]");
+    if (input) {
+      simulatorApi.setSimulatedPlayerConnected(input.dataset.simPlayer, input.checked);
+    }
+  });
+}
+
+function simulatorPlayers() {
+  return latestPlayers
+    .filter((player) => player.simulated)
+    .map((player) => ({
+      ...player,
+      answer: gameSnapshot?.submissions.find(
+        (submission) => submission.playerId === player.id,
+      )?.answer,
+    }));
+}
+
+function renderSimulatorPlayers() {
+  if (!import.meta.env.DEV) return;
+  const container = document.querySelector("#simulated-players");
+  container.replaceChildren(
+    ...simulatorPlayers().map((player) => {
+      const row = document.createElement("label");
+      const submission = gameSnapshot?.submissions.find(
+        (item) => item.playerId === player.id,
+      );
+      row.className = "simulated-player";
+      row.innerHTML = `<input type="checkbox" data-sim-player="${escapeHtml(
+        player.id,
+      )}" ${player.connected ? "checked" : ""}><strong>${escapeHtml(
+        player.name,
+      )}</strong><span>${escapeHtml(
+        gameSnapshot?.state.phase ?? "lobby",
+      )}</span><span>${escapeHtml(
+        submission?.answer ?? "No answer",
+      )}</span><span>${player.score ?? 0} pts</span>`;
+      return row;
+    }),
+  );
 }
 
 function renderSubmissions(submissions, phase) {

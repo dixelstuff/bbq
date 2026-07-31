@@ -61,7 +61,8 @@ body {
   font-size: clamp(1.5rem, 2.8vw, 2.6rem);
   font-weight: 600;
   line-height: 1.35;
-  list-style-position: inside;
+  list-style: none;
+  padding-left: 0;
   text-align: center;
 }
 
