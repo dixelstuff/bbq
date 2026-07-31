@@ -40,6 +40,7 @@ const debugName = document.querySelector("#debug-name");
 const debugScreen = document.querySelector("#debug-screen");
 const debugReconnect = document.querySelector("#debug-reconnect");
 const waitingView = document.querySelector("#waiting-view");
+const waitingMessage = document.querySelector("#waiting-message");
 const questionView = document.querySelector("#question-view");
 const questionImage = document.querySelector("#question-image");
 const questionText = document.querySelector("#question-text");
@@ -614,6 +615,14 @@ function renderPlayerGame() {
     }
     return;
   }
+
+  if (phase === phases.marking) {
+    waitingMessage.textContent = "Your answer is on the grill…";
+    waitingView.hidden = false;
+    return;
+  }
+
+  waitingMessage.textContent = "Waiting for next round…";
 
   if (phase === phases.reveal && submission) {
     playerResult.hidden = false;

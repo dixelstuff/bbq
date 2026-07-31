@@ -45,6 +45,16 @@ test("round definitions can disable auto-close", () => {
   assert.equal(shouldAutoCloseRound(manualRound, [{ id: "a" }], { a: {} }), false);
 });
 
+test("fastest free text currently remains under Host control", async () => {
+  const { fastestCorrectAnswerGame } = await import(
+    "../shared/games/fastest-correct-answer.js"
+  );
+  assert.equal(
+    fastestCorrectAnswerGame.rounds[0].submission.autoCloseWhenComplete,
+    false,
+  );
+});
+
 test("fastest correct scoring is reusable and ordered", () => {
   assert.deepEqual(
     scoreRound(round, [

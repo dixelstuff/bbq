@@ -15,7 +15,7 @@ export const fastestCorrectAnswerGame = {
       typeLabel: "FASTEST FREE TEXT",
       submission: {
         expectsEveryConnectedPlayer: true,
-        autoCloseWhenComplete: true,
+        autoCloseWhenComplete: false,
       },
       scoring: {
         strategy: scoringStrategies.fastestCorrect,

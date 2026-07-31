@@ -6,7 +6,6 @@ import {
   finishGame,
   markAllRemaining,
   markSubmission,
-  maybeAutoCloseAnswers,
   observeGame,
   phases,
   scoreAndReveal,
@@ -42,7 +41,6 @@ const markAllIncorrectButton = document.querySelector("#mark-all-incorrect");
 
 let gameSnapshot;
 let latestPlayers = [];
-let autoClosePending = false;
 
 maintainHostPresence().catch((error) => {
   console.error("[BBQ host] Unable to register Host presence.", error);
@@ -57,16 +55,6 @@ observeGame((snapshot) => {
   gameSnapshot = snapshot;
   renderGame(snapshot);
   renderSimulatorPlayers();
-  if (snapshot.state.phase === phases.question && !autoClosePending) {
-    autoClosePending = true;
-    maybeAutoCloseAnswers()
-      .catch((error) =>
-        console.error("[BBQ host] Automatic answer close failed.", error),
-      )
-      .finally(() => {
-        autoClosePending = false;
-      });
-  }
 }).catch((error) => {
   console.error("[BBQ host] Unable to observe the game.", error);
   phaseLabel.textContent = "Unable to connect to Firebase.";
