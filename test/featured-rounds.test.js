@@ -40,12 +40,10 @@ test("Thank God You’re Lyrics contains four staged manual questions worth 0–
     assert.ok(round.genuineAnswer.song);
     assert.ok(round.genuineAnswer.artist);
   }
-  assert.deepEqual(thankGodYoureLyricsRounds[2].genuineAnswer.lyricLines, [
-    "Truth, youth, beauty, fame, boredom, red hair, no hair",
+  assert.equal(
+    thankGodYoureLyricsRounds[2].answer,
     "Innocence, awkwardness, impunity",
-    "and a picture of you",
-  ]);
-  assert.equal(thankGodYoureLyricsRounds[2].genuineAnswer.emphasisLine, 1);
+  );
 });
 
 test("comedy questions require the complete staged reveal contract", () => {

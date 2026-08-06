@@ -188,12 +188,6 @@ export const thankGodYoureLyricsRounds = [
     song: "No Aphrodisiac",
     artist: "The Whitlams",
     instruction: "MISSING 3 WORDS + SONG + ARTIST",
-    lyricLines: [
-      "Truth, youth, beauty, fame, boredom, red hair, no hair",
-      "Innocence, awkwardness, impunity",
-      "and a picture of you",
-    ],
-    emphasisLine: 1,
   },
   {
     id: "lyrics-gangstas-paradise",
@@ -202,10 +196,6 @@ export const thankGodYoureLyricsRounds = [
       "On my knees in the night, sayin' prayers in the streetlight",
     song: "Gangsta’s Paradise",
     artist: "Coolio",
-    lyricLines: [
-      "On my knees in the night",
-      "Sayin' prayers in the streetlight",
-    ],
   },
 ].map((round) =>
   comedyRound({
@@ -215,8 +205,6 @@ export const thankGodYoureLyricsRounds = [
     answer: round.answer,
     prompt: round.instruction ?? "NEXT LYRIC + SONG + ARTIST",
     genuineAnswer: {
-      lyricLines: round.lyricLines ?? [round.answer],
-      emphasisLine: round.emphasisLine,
       song: round.song,
       artist: round.artist,
     },

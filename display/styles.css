@@ -390,15 +390,8 @@ body {
 }
 
 .genuine-lyric {
-  display: grid;
-  gap: 0.1em;
   font-size: 0.68em;
   line-height: 1.08;
-}
-
-.genuine-lyric .is-emphasis {
-  color: #ffe28a;
-  font-weight: 900;
 }
 
 .genuine-credit {

@@ -378,18 +378,7 @@ function renderGenuineAnswer(definition, fallbackAnswer) {
   label.textContent = answer ? "CORRECT LYRIC" : "GENUINE ANSWER";
   lyric.className = "genuine-lyric";
 
-  if (answer?.lyricLines?.length) {
-    lyric.replaceChildren(
-      ...answer.lyricLines.map((line, index) => {
-        const row = document.createElement("span");
-        row.textContent = line;
-        row.classList.toggle("is-emphasis", index === answer.emphasisLine);
-        return row;
-      }),
-    );
-  } else {
-    lyric.textContent = fallbackAnswer ?? "";
-  }
+  lyric.textContent = fallbackAnswer ?? "";
 
   revealCorrectAnswer.replaceChildren(label, lyric);
   if (answer?.song || answer?.artist) {
