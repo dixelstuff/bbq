@@ -63,6 +63,18 @@ h1 {
   line-height: 0.98;
 }
 
+.player-question h1,
+.host-game h2 {
+  white-space: pre-line;
+}
+
+.answer-instruction {
+  color: #625f58;
+  font-size: 0.82rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+}
+
 h2 {
   font-size: 1.5rem;
   font-weight: 560;

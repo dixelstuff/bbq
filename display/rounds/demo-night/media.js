@@ -36,4 +36,8 @@ export const demoNightDisplayMedia = {
     "googlebel-title.png",
     "Googlebel television round title artwork",
   ),
+  "thank-god-youre-lyrics-title": image(
+    "thank-god-youre-lyrics-title.png",
+    "Thank God You’re Lyrics title artwork",
+  ),
 };

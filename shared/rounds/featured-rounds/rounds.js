@@ -16,6 +16,9 @@ const manualFreeText = ({
   mediaId,
   acceptedAnswers,
   comedyReveal = false,
+  prompt,
+  genuineAnswer,
+  maxPoints = 5,
   notes,
 }) => ({
   id,
@@ -26,6 +29,8 @@ const manualFreeText = ({
   question,
   answer,
   acceptedAnswers,
+  prompt,
+  genuineAnswer,
   notes,
   participation: { mode: "individual" },
   submission: {
@@ -33,7 +38,7 @@ const manualFreeText = ({
     expectsEveryConnectedPlayer: true,
     autoCloseWhenComplete: false,
   },
-  scoring: { strategy: scoringStrategies.manual },
+  scoring: { strategy: scoringStrategies.manual, maxPoints },
   flow: {
     reveal: {
       progressive: comedyReveal,
@@ -159,8 +164,71 @@ export const googlebelRounds = [
   }),
 );
 
+export const thankGodYoureLyricsRounds = [
+  {
+    id: "lyrics-teenage-dirtbag",
+    question: "Her name is Noelle\nI have a dream about her\nShe rings my bell",
+    answer: "I got gym class in half an hour",
+    song: "Teenage Dirtbag",
+    artist: "Wheatus",
+  },
+  {
+    id: "lyrics-torn",
+    question:
+      "So I guess the fortune teller's right\nShould have seen just what was there",
+    answer: "and not some holy light",
+    song: "Torn",
+    artist: "Natalie Imbruglia",
+  },
+  {
+    id: "lyrics-no-aphrodisiac",
+    question:
+      "Truth, youth, beauty, fame, boredom, red hair, no hair\n[ THREE WORD GAP ]\nand a picture of you",
+    answer: "Innocence, awkwardness, impunity",
+    song: "No Aphrodisiac",
+    artist: "The Whitlams",
+    instruction: "MISSING 3 WORDS + SONG + ARTIST",
+    lyricLines: [
+      "Truth, youth, beauty, fame, boredom, red hair, no hair",
+      "Innocence, awkwardness, impunity",
+      "and a picture of you",
+    ],
+    emphasisLine: 1,
+  },
+  {
+    id: "lyrics-gangstas-paradise",
+    question: "Fool, I'm the kinda G the little homies wanna be like",
+    answer:
+      "On my knees in the night, sayin' prayers in the streetlight",
+    song: "Gangsta’s Paradise",
+    artist: "Coolio",
+    lyricLines: [
+      "On my knees in the night",
+      "Sayin' prayers in the streetlight",
+    ],
+  },
+].map((round) =>
+  comedyRound({
+    id: round.id,
+    section: "THANK GOD YOU’RE LYRICS",
+    question: round.question,
+    answer: round.answer,
+    prompt: round.instruction ?? "NEXT LYRIC + SONG + ARTIST",
+    genuineAnswer: {
+      lyricLines: round.lyricLines ?? [round.answer],
+      emphasisLine: round.emphasisLine,
+      song: round.song,
+      artist: round.artist,
+    },
+    maxPoints: 3,
+    mediaId: "thank-god-youre-lyrics-title",
+    notes: `Song: ${round.song}. Artist: ${round.artist}. Award 0–3 points total: up to 2 for the lyric and 1 for artist/song. Judge everything manually.`,
+  }),
+);
+
 export const featuredRounds = [
   ...csiKoonoomooRounds,
   ...sippingPointRounds,
   ...googlebelRounds,
+  ...thankGodYoureLyricsRounds,
 ];

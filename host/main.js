@@ -919,7 +919,8 @@ function renderSubmissions(submissions, phase) {
 }
 
 function appendManualPointButtons(container, submission) {
-  for (let points = 0; points <= 5; points += 1) {
+  const maxPoints = gameSnapshot?.definition?.scoring?.maxPoints ?? 5;
+  for (let points = 0; points <= maxPoints; points += 1) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = `small-button${

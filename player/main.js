@@ -54,6 +54,7 @@ const questionText = document.querySelector("#question-text");
 const answerForm = document.querySelector("#answer-form");
 const answerInput = document.querySelector("#answer");
 const answerTextControl = document.querySelector("#answer-text-control");
+const answerInstruction = document.querySelector("#answer-instruction");
 const choiceOptions = document.querySelector("#choice-options");
 const answerButton = document.querySelector("#answer-submit");
 const answerStatus = document.querySelector("#answer-status");
@@ -727,8 +728,12 @@ function renderPlayerGame() {
       answerInput.value = sessionStorage.getItem(`bbq.answerDraft.${roundKey}`) ?? "";
     }
     const choices = definition.choices ?? [];
+    answerInstruction.textContent = definition.prompt ?? "";
+    answerInstruction.hidden = !definition.prompt || choices.length > 0;
     answerInput.inputMode = numeric ? "decimal" : "text";
-    answerInput.placeholder = numeric ? "Enter a number" : "";
+    answerInput.placeholder = numeric
+      ? "Enter a number"
+      : definition.prompt ?? "";
     answerTextControl.hidden = choices.length > 0;
     answerButton.hidden = choices.length > 0;
     choiceOptions.hidden = choices.length === 0;

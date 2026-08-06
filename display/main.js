@@ -202,9 +202,12 @@ function renderGame(snapshot) {
     }
     showOnly(revealScreen);
     revealScreen.classList.toggle("mcq-results", definition.type === roundTypes.mcq);
+    revealScreen.classList.toggle("lyric-results", Boolean(definition.genuineAnswer));
     revealRoundType.textContent = "";
     revealQuestion.textContent =
-      definition.type === roundTypes.mcq ? definition.question : "";
+      definition.type === roundTypes.mcq || definition.genuineAnswer
+        ? definition.question
+        : "";
     const revealedAnswer =
       definition.type === roundTypes.closestWins
         ? formatNumericAnswer(definition.correctValue)
@@ -221,9 +224,7 @@ function renderGame(snapshot) {
       genuineAnswerStaged && Boolean(round?.genuineAnswerRevealed),
     );
     if (showGenuineAnswer && genuineAnswerStaged) {
-      revealCorrectAnswer.innerHTML = `<small>GENUINE ANSWER</small><strong>${escapeHtml(
-        revealedAnswer ?? "",
-      )}</strong>`;
+      renderGenuineAnswer(definition, revealedAnswer);
     } else {
       revealCorrectAnswer.textContent = showGenuineAnswer
         ? definition.type === roundTypes.myDefinition
@@ -368,6 +369,35 @@ function renderGame(snapshot) {
 
   showOnly(holdingScreen);
   holdingText.textContent = "WAITING FOR NEXT ROUND…";
+}
+
+function renderGenuineAnswer(definition, fallbackAnswer) {
+  const answer = definition.genuineAnswer;
+  const label = document.createElement("small");
+  const lyric = document.createElement("span");
+  label.textContent = answer ? "CORRECT LYRIC" : "GENUINE ANSWER";
+  lyric.className = "genuine-lyric";
+
+  if (answer?.lyricLines?.length) {
+    lyric.replaceChildren(
+      ...answer.lyricLines.map((line, index) => {
+        const row = document.createElement("span");
+        row.textContent = line;
+        row.classList.toggle("is-emphasis", index === answer.emphasisLine);
+        return row;
+      }),
+    );
+  } else {
+    lyric.textContent = fallbackAnswer ?? "";
+  }
+
+  revealCorrectAnswer.replaceChildren(label, lyric);
+  if (answer?.song || answer?.artist) {
+    const credit = document.createElement("span");
+    credit.className = "genuine-credit";
+    credit.textContent = [answer.song, answer.artist].filter(Boolean).join(" · ");
+    revealCorrectAnswer.append(credit);
+  }
 }
 
 function renderMcqSummary(submissions) {

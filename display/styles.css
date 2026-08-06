@@ -389,6 +389,25 @@ body {
   letter-spacing: 0.22em;
 }
 
+.genuine-lyric {
+  display: grid;
+  gap: 0.1em;
+  font-size: 0.68em;
+  line-height: 1.08;
+}
+
+.genuine-lyric .is-emphasis {
+  color: #ffe28a;
+  font-weight: 900;
+}
+
+.genuine-credit {
+  color: #ffe28a;
+  font-size: 0.42em;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
 @keyframes genuine-answer-in {
   from { opacity: 0; transform: scale(0.96); }
   to { opacity: 1; transform: scale(1); }
@@ -409,6 +428,10 @@ body {
   font-size: clamp(3rem, 7vw, 7rem);
   letter-spacing: -0.05em;
   text-align: center;
+}
+
+.display-game-screen h1 {
+  white-space: pre-line;
 }
 
 .display-game-screen h1[data-density="balanced"] {
@@ -439,6 +462,24 @@ body {
     radial-gradient(circle at 14% 18%, rgb(168 240 206 / 18%), transparent 32%),
     radial-gradient(circle at 88% 82%, rgb(222 181 87 / 16%), transparent 34%),
     linear-gradient(135deg, #031712, #0b3025 55%, #061b15);
+}
+
+.display-results-screen.lyric-results {
+  gap: 1rem;
+}
+
+.display-results-screen.lyric-results > h1 {
+  width: min(92vw, 76rem);
+  margin: 0 auto;
+  font-size: clamp(1.35rem, 2.7vw, 2.75rem);
+  line-height: 1.08;
+  white-space: pre-line;
+}
+
+.display-results-screen.lyric-results .reveal-correct-answer.is-genuine {
+  width: min(90vw, 70rem);
+  margin: 0 auto;
+  font-size: clamp(1.8rem, 3.4vw, 3.3rem);
 }
 
 .display-results-screen::before,
