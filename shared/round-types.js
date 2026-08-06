@@ -25,8 +25,22 @@ export const mediaVisibility = {
 };
 
 export function usesProgressiveFreeTextReveal(round) {
+  if (typeof round?.flow?.reveal?.progressive === "boolean") {
+    return round.flow.reveal.progressive;
+  }
   return [roundTypes.fastestFreeText, roundTypes.bestFreeText].includes(
     round?.type,
+  );
+}
+
+export function requiresGenuineAnswerReveal(round) {
+  return Boolean(round?.flow?.reveal?.genuineAnswerAfterSubmissions);
+}
+
+export function awardsPointsAfterGenuineAnswer(round) {
+  return Boolean(
+    requiresGenuineAnswerReveal(round) &&
+      round?.flow?.scoring?.afterGenuineAnswer,
   );
 }
 

@@ -24,4 +24,16 @@ export const demoNightDisplayMedia = {
     "demo-closest-title.png",
     "Closest Wins title artwork with a glowing target and measuring marks",
   ),
+  "csi-koonoomoo-title": image(
+    "csi-koonoomoo-title.png",
+    "CSI Koonoomoo title artwork",
+  ),
+  "sipping-point-title": image(
+    "sipping-point-title.png",
+    "Sipping Point title artwork",
+  ),
+  "googlebel-title": image(
+    "googlebel-title.png",
+    "Googlebel television round title artwork",
+  ),
 };

@@ -10,6 +10,7 @@ import { resolveDisplayMedia } from "./media.js";
 import {
   formatNumericAnswer,
   mediaForAudience,
+  requiresGenuineAnswerReveal,
   roundTypes,
   usesProgressiveFreeTextReveal,
 } from "../shared/round-types.js";
@@ -174,6 +175,12 @@ function renderGame(snapshot) {
     }
     displayRoundType.textContent = definition.typeLabel;
     questionText.textContent = definition.question;
+    questionText.dataset.density =
+      definition.question.length > 220
+        ? "compact"
+        : definition.question.length > 120
+          ? "balanced"
+          : "roomy";
     displayPrompt.textContent = definition.prompt ?? "";
     return;
   }
@@ -204,12 +211,26 @@ function renderGame(snapshot) {
         : definition.type === roundTypes.myDefinition
           ? round?.result?.definition
           : definition.revealAnswer ?? definition.answer;
-    revealCorrectAnswer.textContent =
-      definition.type === roundTypes.bestFreeText
-        ? ""
-        : definition.type === roundTypes.myDefinition
+    const genuineAnswerStaged = requiresGenuineAnswerReveal(definition);
+    const showGenuineAnswer =
+      (!genuineAnswerStaged || round?.genuineAnswerRevealed) &&
+      (definition.type !== roundTypes.bestFreeText ||
+        definition.flow?.reveal?.showGenuineAnswer);
+    revealCorrectAnswer.classList.toggle(
+      "is-genuine",
+      genuineAnswerStaged && Boolean(round?.genuineAnswerRevealed),
+    );
+    if (showGenuineAnswer && genuineAnswerStaged) {
+      revealCorrectAnswer.innerHTML = `<small>GENUINE ANSWER</small><strong>${escapeHtml(
+        revealedAnswer ?? "",
+      )}</strong>`;
+    } else {
+      revealCorrectAnswer.textContent = showGenuineAnswer
+        ? definition.type === roundTypes.myDefinition
           ? `${definition.word}: ${revealedAnswer ?? ""}`
-          : revealedAnswer ?? "";
+          : revealedAnswer ?? ""
+        : "";
+    }
     const progressive = usesProgressiveFreeTextReveal(definition);
     revealAnswers.classList.toggle("free-text-stage", progressive);
     revealAnswers.classList.toggle("mcq-summary", definition.type === roundTypes.mcq);
@@ -287,6 +308,12 @@ function renderGame(snapshot) {
           )}</strong><span>${escapeHtml(
             submission.answer,
           )}</span><span>${showPoints ? `+${points}` : ""}</span>`;
+        } else if (definition.type === roundTypes.bestFreeText) {
+          item.innerHTML = `<strong>${escapeHtml(
+            submission.playerName,
+          )}</strong><span>${escapeHtml(submission.answer)}</span><span>${
+            showPoints ? `+${submission.points ?? 0}` : ""
+          }</span>`;
         } else {
           item.innerHTML = `<strong>${escapeHtml(
             submission.playerName,

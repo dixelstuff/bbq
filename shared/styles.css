@@ -806,6 +806,12 @@ dialog::backdrop {
   font-size: 0.8rem;
 }
 
+.small-button.is-selected {
+  color: #062118;
+  background: #8fe0bc;
+  border-color: #b9f3d8;
+}
+
 .bulk-actions button {
   flex: 1 1 14rem;
 }

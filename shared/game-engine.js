@@ -3,7 +3,9 @@ import { database, signIn } from "./firebase.js";
 import { getNextRound, getRound, partyGame } from "./games/party-game.js";
 import {
   applyRoundScores,
+  awardsPointsAfterGenuineAnswer,
   normalizeSubmission,
+  requiresGenuineAnswerReveal,
   roundTypes,
   scoreRound,
   scoreDefinitionVotes,
@@ -941,6 +943,7 @@ export async function scoreAndReveal() {
         revealPoints: !progressiveReveal,
         revealedSubmissionIds: progressiveReveal ? [] : scored.map((item) => item.playerId),
         revealGridFinalized: !progressiveReveal,
+        genuineAnswerRevealed: !requiresGenuineAnswerReveal(roundDefinition),
       },
       state: {
         ...state,
@@ -1012,11 +1015,14 @@ export async function finalizeProgressiveReveal() {
 
 export async function revealRoundPoints() {
   return transactSession((session, state) => {
+    const definition = getRound(state.gameId, state.roundId);
     if (
       state.phase !== phases.reveal ||
       !session.round ||
-      (usesProgressiveFreeTextReveal(getRound(state.gameId, state.roundId)) &&
-        !session.round.revealGridFinalized)
+      (usesProgressiveFreeTextReveal(definition) &&
+        !session.round.revealGridFinalized) ||
+      (requiresGenuineAnswerReveal(definition) &&
+        !session.round.genuineAnswerRevealed)
     ) return;
     return {
       ...session,
@@ -1024,6 +1030,65 @@ export async function revealRoundPoints() {
         ...session.round,
         revealCount: Object.keys(session.round.submissions ?? {}).length,
         revealPoints: true,
+      },
+    };
+  });
+}
+
+export async function revealGenuineAnswer() {
+  return transactSession((session, state) => {
+    const definition = getRound(state.gameId, state.roundId);
+    if (
+      state.phase !== phases.reveal ||
+      !requiresGenuineAnswerReveal(definition) ||
+      !session.round?.revealGridFinalized
+    ) return;
+    return {
+      ...session,
+      round: { ...session.round, genuineAnswerRevealed: true },
+    };
+  });
+}
+
+export async function awardRevealedSubmissionPoints(playerId, points) {
+  const normalizedPoints = Number(points);
+  if (!Number.isFinite(normalizedPoints)) {
+    throw new Error("Points must be a number");
+  }
+
+  return transactSession((session, state) => {
+    const definition = getRound(state.gameId, state.roundId);
+    const submission = session.round?.submissions?.[playerId];
+    if (
+      state.phase !== phases.reveal ||
+      !awardsPointsAfterGenuineAnswer(definition) ||
+      !session.round?.genuineAnswerRevealed ||
+      session.round?.revealPoints ||
+      !submission ||
+      !session.players?.[playerId]
+    ) return;
+
+    const previousPoints = Number(submission.points ?? 0);
+    const player = session.players[playerId];
+    return {
+      ...session,
+      players: {
+        ...session.players,
+        [playerId]: {
+          ...player,
+          score: (player.score ?? 0) + normalizedPoints - previousPoints,
+        },
+      },
+      round: {
+        ...session.round,
+        submissions: {
+          ...session.round.submissions,
+          [playerId]: {
+            ...submission,
+            points: normalizedPoints,
+            pointsOverridden: true,
+          },
+        },
       },
     };
   });

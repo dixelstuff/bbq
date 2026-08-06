@@ -1,6 +1,7 @@
 import "../shared/development.js";
 import "../shared/styles.css";
 import {
+  awardRevealedSubmissionPoints,
   beginRound,
   activateCharadesTeam,
   controlRoundAudio,
@@ -21,6 +22,7 @@ import {
   phases,
   finalizeProgressiveReveal,
   revealSubmission,
+  revealGenuineAnswer,
   revealRoundPoints,
   scoreAndReveal,
   showLeaderboard,
@@ -48,6 +50,8 @@ import {
 import { observePlayers } from "../shared/players.js";
 import { releaseId, releaseOrder } from "../shared/release.js";
 import {
+  awardsPointsAfterGenuineAnswer,
+  requiresGenuineAnswerReveal,
   roundTypes,
   usesProgressiveFreeTextReveal,
 } from "../shared/round-types.js";
@@ -77,6 +81,7 @@ const leaderboardToggle = document.querySelector("#leaderboard-toggle");
 const skipButton = document.querySelector("#skip-round");
 const revealControls = document.querySelector("#reveal-controls");
 const revealGridButton = document.querySelector("#reveal-show-grid");
+const revealRealAnswerButton = document.querySelector("#reveal-real-answer");
 const revealPointsButton = document.querySelector("#reveal-points");
 const phaseLabel = document.querySelector("#phase");
 const cueHeading = document.querySelector("#cue");
@@ -209,12 +214,17 @@ nextButton.addEventListener("click", async () => {
   const progressiveReveal = usesProgressiveFreeTextReveal(
     gameSnapshot?.definition,
   );
+  const stagedGenuineAnswer = requiresGenuineAnswerReveal(
+    gameSnapshot?.definition,
+  );
   const revealAction = !progressiveReveal
     ? finishRound
     : revealedCount < revealTotal
       ? null
       : !gameSnapshot?.round?.revealGridFinalized
         ? finalizeProgressiveReveal
+        : stagedGenuineAnswer && !gameSnapshot?.round?.genuineAnswerRevealed
+          ? revealGenuineAnswer
         : !gameSnapshot?.round?.revealPoints && revealTotal > 0
           ? revealRoundPoints
           : finishRound;
@@ -257,6 +267,9 @@ skipButton.addEventListener("click", () =>
 );
 revealGridButton.addEventListener("click", () =>
   runAction(revealGridButton, finalizeProgressiveReveal),
+);
+revealRealAnswerButton.addEventListener("click", () =>
+  runAction(revealRealAnswerButton, revealGenuineAnswer),
 );
 revealPointsButton.addEventListener("click", () =>
   runAction(revealPointsButton, revealRoundPoints),
@@ -324,10 +337,15 @@ submissionsList.addEventListener("click", async (event) => {
   const pointsButton = event.target.closest("button[data-manual-points]");
   if (pointsButton) {
     await runAction(pointsButton, () =>
-      overrideSubmissionPoints(
-        pointsButton.dataset.playerId,
-        pointsButton.dataset.manualPoints,
-      ),
+      awardsPointsAfterGenuineAnswer(gameSnapshot?.definition)
+        ? awardRevealedSubmissionPoints(
+            pointsButton.dataset.playerId,
+            pointsButton.dataset.manualPoints,
+          )
+        : overrideSubmissionPoints(
+            pointsButton.dataset.playerId,
+            pointsButton.dataset.manualPoints,
+          ),
     );
     return;
   }
@@ -494,6 +512,9 @@ function renderGame(snapshot) {
           ? "CHOOSE AN ANSWER TO REVEAL"
           : !round?.revealGridFinalized
             ? "SHOW ALL ANSWERS"
+            : requiresGenuineAnswerReveal(definition) &&
+                !round?.genuineAnswerRevealed
+              ? "REVEAL REAL ANSWER"
             : !round?.revealPoints && submissions.length > 0
               ? "REVEAL POINTS"
               : "NEXT QUESTION",
@@ -521,9 +542,16 @@ function renderGame(snapshot) {
     !stagedReveal ||
     (round?.revealedSubmissionIds?.length ?? 0) < submissions.length ||
     Boolean(round?.revealGridFinalized);
+  const needsGenuineAnswer = requiresGenuineAnswerReveal(definition);
+  revealRealAnswerButton.hidden = !needsGenuineAnswer;
+  revealRealAnswerButton.disabled =
+    !stagedReveal ||
+    !round?.revealGridFinalized ||
+    Boolean(round?.genuineAnswerRevealed);
   revealPointsButton.disabled =
     !stagedReveal ||
     !round?.revealGridFinalized ||
+    (needsGenuineAnswer && !round?.genuineAnswerRevealed) ||
     Boolean(round?.revealPoints);
 }
 
@@ -762,6 +790,7 @@ function renderSubmissions(submissions, phase) {
     roundId: definition?.id,
     revealedSubmissionIds: gameSnapshot?.round?.revealedSubmissionIds,
     revealGridFinalized: gameSnapshot?.round?.revealGridFinalized,
+    genuineAnswerRevealed: gameSnapshot?.round?.genuineAnswerRevealed,
     revealPoints: gameSnapshot?.round?.revealPoints,
     submissions: submissions.map((submission) => ({
       playerId: submission.playerId,
@@ -794,7 +823,14 @@ function renderSubmissions(submissions, phase) {
         const revealed = gameSnapshot?.round?.revealedSubmissionIds?.includes(
           submission.playerId,
         );
-        if (revealed) {
+        if (
+          revealed &&
+          awardsPointsAfterGenuineAnswer(definition) &&
+          gameSnapshot?.round?.genuineAnswerRevealed &&
+          !gameSnapshot?.round?.revealPoints
+        ) {
+          appendManualPointButtons(controls, submission);
+        } else if (revealed) {
           controls.textContent = "REVEALED";
         } else {
           const reveal = document.createElement("button");
@@ -804,6 +840,11 @@ function renderSubmissions(submissions, phase) {
           reveal.textContent = "REVEAL";
           controls.append(reveal);
         }
+      } else if (
+        phase === phases.marking &&
+        awardsPointsAfterGenuineAnswer(definition)
+      ) {
+        controls.textContent = "Ready for ordered reveal";
       } else if (
         phase === phases.marking &&
         definition?.type === roundTypes.closestWins
@@ -822,21 +863,10 @@ function renderSubmissions(submissions, phase) {
         controls.append(check, points);
       } else if (
         phase === phases.marking &&
-        definition?.type === roundTypes.bestFreeText
+        definition?.type === roundTypes.bestFreeText &&
+        !awardsPointsAfterGenuineAnswer(definition)
       ) {
-        for (let points = 0; points <= 5; points += 1) {
-          const button = document.createElement("button");
-          button.type = "button";
-          button.className = "small-button";
-          button.dataset.playerId = submission.playerId;
-          button.dataset.manualPoints = String(points);
-          button.textContent = String(points);
-          button.setAttribute(
-            "aria-label",
-            `Award ${points} points to ${submission.playerName}`,
-          );
-          controls.append(button);
-        }
+        appendManualPointButtons(controls, submission);
       } else if (
         phase === phases.marking &&
         definition?.type === roundTypes.myDefinition
@@ -886,6 +916,24 @@ function renderSubmissions(submissions, phase) {
       return item;
     }),
   );
+}
+
+function appendManualPointButtons(container, submission) {
+  for (let points = 0; points <= 5; points += 1) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `small-button${
+      Number(submission.points ?? 0) === points ? " is-selected" : ""
+    }`;
+    button.dataset.playerId = submission.playerId;
+    button.dataset.manualPoints = String(points);
+    button.textContent = String(points);
+    button.setAttribute(
+      "aria-label",
+      `Award ${points} points to ${submission.playerName}`,
+    );
+    container.append(button);
+  }
 }
 
 function markingButton(playerId, status, label) {

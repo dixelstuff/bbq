@@ -7,11 +7,13 @@ import {
   fastestFreeTextRounds,
   mcqRounds,
 } from "../rounds/demo-night/rounds.js";
+import { featuredRounds } from "../rounds/featured-rounds/rounds.js";
 
 export const partyGame = {
   id: "birthday-party",
   title: "BBQ Demo Night",
   rounds: [
+    ...featuredRounds,
     ...mcqRounds,
     ...fastestFreeTextRounds,
     ...bestFreeTextRounds,
