@@ -56,6 +56,7 @@ const spellingRevealStatus = document.querySelector("#spelling-reveal-status");
 const spellingRevealWord = document.querySelector("#spelling-reveal-word");
 const timerScreen = document.querySelector("#timer-screen");
 const timerValue = document.querySelector("#timer-value");
+const timerArtwork = document.querySelector("#timer-artwork");
 const enableAudioButton = document.querySelector("#enable-audio");
 
 let players = [];
@@ -147,8 +148,13 @@ function renderGame(snapshot) {
   }
 
   if (state.phase === phases.question && definition) {
-    if (definition.type === roundTypes.charades && round?.timer) {
-      renderTimer(round.timer);
+    const charadesSet = round?.sets?.[round?.activeSetIndex ?? 0];
+    if (
+      definition.type === roundTypes.charades &&
+      round?.charadesPhase === "active" &&
+      charadesSet?.timer
+    ) {
+      renderTimer(charadesSet.timer, definition);
       return;
     }
     const mode = round?.displayMode ?? displayModeForPhase(definition, state.phase);
@@ -496,8 +502,14 @@ function renderSpellingReveal(definition, round) {
   }
 }
 
-function renderTimer(timer) {
+function renderTimer(timer, definition) {
   showOnly(timerScreen);
+  const title = resolveDisplayMedia(definition?.media?.title);
+  timerArtwork.hidden = title?.type !== "image";
+  if (title?.type === "image") {
+    timerArtwork.src = title.src;
+    timerArtwork.alt = title.alt ?? "Would I Mime to You";
+  }
   const seconds = remainingTimerSeconds(timer);
   timerValue.textContent = seconds > 0 ? String(seconds) : "TIME!";
   timerScreen.classList.toggle("timer-complete", seconds === 0);
@@ -507,12 +519,16 @@ function renderTimer(timer) {
 }
 
 function renderTimerTick() {
+  const set = gameSnapshot?.round?.sets?.[
+    gameSnapshot?.round?.activeSetIndex ?? 0
+  ];
   if (
     gameSnapshot?.definition?.type === roundTypes.charades &&
     gameSnapshot.state.phase === phases.question &&
-    gameSnapshot.round?.timer
+    gameSnapshot.round?.charadesPhase === "active" &&
+    set?.timer
   ) {
-    renderTimer(gameSnapshot.round.timer);
+    renderTimer(set.timer, gameSnapshot.definition);
   }
 }
 

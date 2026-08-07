@@ -1,10 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {
-  charadesLibrary,
-  charadesPrompts,
-  charadesPromptSets,
-} from "../host/rounds/charades/content.js";
 import { spellingBeeWords } from "../host/rounds/spelling-bee/content.js";
 import { getHostContent } from "../host/rounds/demo-night/content.js";
 import {
@@ -59,23 +54,6 @@ test("the spelling bee contains every supplied word exactly once", () => {
       "Occasionally",
     ].map((word) => word.toUpperCase()),
   );
-});
-
-test("charades keeps all supplied prompts and adds exactly fifty", () => {
-  const suppliedCount = 37;
-  assert.equal(charadesPrompts.length, suppliedCount + 50);
-  for (const prompt of [
-    "Titanic",
-    "Albert Einstein",
-    "Platypus",
-    "Air traffic controller",
-    "Trying to plug in a USB the wrong way twice",
-  ]) {
-    assert.ok(charadesPrompts.some((entry) => entry.prompt === prompt));
-  }
-  assert.ok(Object.keys(charadesLibrary).length >= 5);
-  assert.equal(charadesPromptSets.length, 8);
-  assert.ok(charadesPromptSets.every((set) => set.length === 10));
 });
 
 test("MCQ scoring accepts alternatives and remains case-insensitive", () => {

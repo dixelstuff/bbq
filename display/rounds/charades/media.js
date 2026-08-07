@@ -1,9 +1,9 @@
 export const charadesDisplayMedia = {
-  "charades-title": {
+  "would-i-mime-title": {
     src: new URL(
-      "../../../media/images/charades-title.svg",
+      "../../../media/images/would-i-mime-to-you.png",
       import.meta.url,
     ).href,
-    alt: "Charades title artwork",
+    alt: "Would I Mime to You title artwork",
   },
 };

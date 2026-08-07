@@ -14,6 +14,7 @@ import {
 } from "./round-types.js";
 import { validSessionState } from "./session-state.js";
 import {
+  creditGroupMembers,
   createGroups,
   groupingModes,
   participationModes,
@@ -38,6 +39,29 @@ const phases = {
 };
 
 export { phases };
+
+export const charadesSetPhases = Object.freeze({
+  holding: "holding",
+  active: "active",
+  summary: "summary",
+  confirmed: "confirmed",
+});
+
+export function createCharadesSetState(definition, grouping) {
+  const teams = Object.values(grouping?.groups ?? {});
+  return (definition?.sets ?? []).map((set) => ({
+    setNumber: set.setNumber,
+    teamGroupId: teams[set.teamIndex]?.id ?? null,
+    clues: Array.from({ length: set.clueCount }, (_, index) => ({
+      id: `set-${set.setNumber}-clue-${index + 1}`,
+      status: "unseen",
+    })),
+    activeClueIndex: 0,
+    timer: null,
+    score: 0,
+    confirmed: false,
+  }));
+}
 
 export function validGameState(session) {
   const state = validSessionState(session?.state);
@@ -142,12 +166,20 @@ export async function beginRound(roundId = partyGame.rounds[0].id) {
         id: round.id,
         type: round.type,
         submissions: {},
-        itemIndex: 0,
-        promptIndex: 0,
-        attemptNumber: 1,
-        correctGuesses: 0,
-        skippedPrompts: 0,
-        timer: null,
+        ...(round.type === roundTypes.charades
+          ? {
+              activeSetIndex: 0,
+              charadesPhase: charadesSetPhases.holding,
+              sets: createCharadesSetState(round, grouping),
+            }
+          : {
+              itemIndex: 0,
+              promptIndex: 0,
+              attemptNumber: 1,
+              correctGuesses: 0,
+              skippedPrompts: 0,
+              timer: null,
+            }),
         displayMode: displayModeForPhase(round, phases.question),
         startedAt: Date.now(),
       },
@@ -320,77 +352,227 @@ export async function advanceSpelling() {
   });
 }
 
-export async function moveCharadesPrompt(direction) {
-  const change = Number(direction);
-  if (!Number.isInteger(change)) throw new Error("Prompt direction is invalid");
+export function charadesSetScore(set) {
+  return (set?.clues ?? []).filter((clue) => clue.status === "correct").length;
+}
+
+export function nextCharadesClueIndex(clues, currentIndex) {
+  const items = clues ?? [];
+  for (const status of ["unseen", "passed"]) {
+    for (let offset = 1; offset <= items.length; offset += 1) {
+      const index = (currentIndex + offset) % items.length;
+      if (items[index]?.status === status) return index;
+    }
+  }
+  return -1;
+}
+
+export async function startCharadesSet() {
   return transactSession((session, state) => {
     const definition = getRound(state.gameId, state.roundId);
+    const setIndex = session.round?.activeSetIndex ?? 0;
+    const set = session.round?.sets?.[setIndex];
     if (
       state.phase !== phases.question ||
-      definition?.type !== roundTypes.charades
-    ) {
-      return;
-    }
+      definition?.type !== roundTypes.charades ||
+      session.round?.charadesPhase !== charadesSetPhases.holding ||
+      !set ||
+      set.confirmed
+    ) return;
+    const startedAt = Date.now();
+    const durationSeconds = definition.timer?.defaultSeconds ?? 90;
+    const sets = [...session.round.sets];
+    sets[setIndex] = {
+      ...set,
+      activeClueIndex: nextCharadesClueIndex(set.clues, -1),
+      timer: {
+        status: "running",
+        durationSeconds,
+        startedAt,
+        endsAt: startedAt + durationSeconds * 1000,
+      },
+    };
     return {
       ...session,
+      grouping: {
+        ...session.grouping,
+        activeGroupId: set.teamGroupId,
+      },
       round: {
         ...session.round,
-        promptIndex: Math.max(
-          0,
-          Math.min(4, (session.round?.promptIndex ?? 0) + change),
-        ),
+        sets,
+        charadesPhase: charadesSetPhases.active,
       },
     };
   });
 }
 
 export async function recordCharadesAttempt(outcome) {
-  if (!["correct", "skipped"].includes(outcome)) {
+  if (!["correct", "passed"].includes(outcome)) {
     throw new Error("Unknown Charades outcome");
   }
   return transactSession((session, state) => {
     const definition = getRound(state.gameId, state.roundId);
+    const setIndex = session.round?.activeSetIndex ?? 0;
+    const set = session.round?.sets?.[setIndex];
     if (
       state.phase !== phases.question ||
-      definition?.type !== roundTypes.charades
-    ) {
-      return;
+      definition?.type !== roundTypes.charades ||
+      session.round?.charadesPhase !== charadesSetPhases.active ||
+      set?.timer?.status !== "running"
+    ) return;
+    if (Date.now() >= set.timer.endsAt) {
+      return finishCharadesSetState(session);
     }
-    if ((session.round?.attemptNumber ?? 1) > 5) return;
+
+    const clues = set.clues.map((clue, index) =>
+      index === set.activeClueIndex ? { ...clue, status: outcome } : clue,
+    );
+    const nextIndex = nextCharadesClueIndex(clues, set.activeClueIndex);
+    const updatedSet = {
+      ...set,
+      clues,
+      score: charadesSetScore({ clues }),
+      activeClueIndex: nextIndex,
+    };
+    const sets = [...session.round.sets];
+    sets[setIndex] = updatedSet;
+    const updated = {
+      ...session,
+      round: { ...session.round, sets },
+    };
+    return nextIndex < 0 ? finishCharadesSetState(updated) : updated;
+  });
+}
+
+export async function finishCharadesSet() {
+  return transactSession((session, state) => {
+    const definition = getRound(state.gameId, state.roundId);
+    if (
+      state.phase !== phases.question ||
+      definition?.type !== roundTypes.charades ||
+      session.round?.charadesPhase !== charadesSetPhases.active
+    ) return;
+    return finishCharadesSetState(session);
+  });
+}
+
+function finishCharadesSetState(session) {
+  const setIndex = session.round?.activeSetIndex ?? 0;
+  const set = session.round?.sets?.[setIndex];
+  if (!set) return;
+  const sets = [...session.round.sets];
+  sets[setIndex] = {
+    ...set,
+    score: charadesSetScore(set),
+    timer: {
+      ...set.timer,
+      status: "stopped",
+      stoppedAt: Date.now(),
+      remainingSeconds: 0,
+    },
+  };
+  return {
+    ...session,
+    round: {
+      ...session.round,
+      sets,
+      charadesPhase: charadesSetPhases.summary,
+    },
+  };
+}
+
+export async function setCharadesClueResult(clueIndex, correct) {
+  const index = Number(clueIndex);
+  return transactSession((session, state) => {
+    const definition = getRound(state.gameId, state.roundId);
+    const setIndex = session.round?.activeSetIndex ?? 0;
+    const set = session.round?.sets?.[setIndex];
+    if (
+      state.phase !== phases.question ||
+      definition?.type !== roundTypes.charades ||
+      session.round?.charadesPhase !== charadesSetPhases.summary ||
+      !set?.clues?.[index]
+    ) return;
+    const clues = set.clues.map((clue, clueIndex) =>
+      clueIndex === index
+        ? { ...clue, status: correct ? "correct" : "passed" }
+        : clue,
+    );
+    const sets = [...session.round.sets];
+    sets[setIndex] = { ...set, clues, score: charadesSetScore({ clues }) };
+    return { ...session, round: { ...session.round, sets } };
+  });
+}
+
+export async function confirmCharadesSetScore() {
+  return transactSession((session, state) => {
+    const definition = getRound(state.gameId, state.roundId);
+    const setIndex = session.round?.activeSetIndex ?? 0;
+    const set = session.round?.sets?.[setIndex];
+    const group = session.grouping?.groups?.[set?.teamGroupId];
+    if (
+      state.phase !== phases.question ||
+      definition?.type !== roundTypes.charades ||
+      session.round?.charadesPhase !== charadesSetPhases.summary ||
+      !set ||
+      set.confirmed ||
+      !group
+    ) return;
+    const score = charadesSetScore(set);
+    const sets = [...session.round.sets];
+    sets[setIndex] = { ...set, score, confirmed: true };
+    const awardId = `charades-set-${set.setNumber}`;
     return {
       ...session,
+      players: creditGroupMembers(
+        session.players ?? {},
+        group,
+        score,
+        state.generation,
+      ),
       round: {
         ...session.round,
-        promptIndex: Math.min(4, (session.round?.promptIndex ?? 0) + 1),
-        attemptNumber: (session.round?.attemptNumber ?? 1) + 1,
-        correctGuesses:
-          (session.round?.correctGuesses ?? 0) +
-          (outcome === "correct" ? 1 : 0),
-        skippedPrompts:
-          (session.round?.skippedPrompts ?? 0) +
-          (outcome === "skipped" ? 1 : 0),
+        sets,
+        charadesPhase: charadesSetPhases.confirmed,
+        groupAwards: {
+          ...(session.round.groupAwards ?? {}),
+          [awardId]: {
+            roundType: roundTypes.charades,
+            setNumber: set.setNumber,
+            groupId: group.id,
+            groupName: group.name,
+            memberIds: group.memberIds ?? [],
+            points: score,
+            awardedAt: Date.now(),
+          },
+        },
       },
     };
   });
 }
 
-export async function activateCharadesTeam(groupId) {
+export async function advanceCharadesSet() {
   return transactSession((session, state) => {
     const definition = getRound(state.gameId, state.roundId);
+    const currentIndex = session.round?.activeSetIndex ?? 0;
     if (
+      state.phase !== phases.question ||
       definition?.type !== roundTypes.charades ||
-      !session.grouping?.groups?.[groupId]
+      session.round?.charadesPhase !== charadesSetPhases.confirmed
     ) return;
+    const nextSet = session.round?.sets?.[currentIndex + 1];
+    if (!nextSet) return completeRound(session, state);
     return {
       ...session,
-      grouping: { ...session.grouping, activeGroupId: groupId },
+      grouping: {
+        ...session.grouping,
+        activeGroupId: nextSet.teamGroupId,
+      },
       round: {
         ...session.round,
-        promptIndex: 0,
-        attemptNumber: 1,
-        correctGuesses: 0,
-        skippedPrompts: 0,
-        timer: null,
+        activeSetIndex: currentIndex + 1,
+        charadesPhase: charadesSetPhases.holding,
       },
     };
   });

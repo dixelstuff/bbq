@@ -2,8 +2,10 @@ import "../shared/development.js";
 import "../shared/styles.css";
 import {
   awardRevealedSubmissionPoints,
+  advanceCharadesSet,
   beginRound,
-  activateCharadesTeam,
+  charadesSetPhases,
+  confirmCharadesSetScore,
   controlRoundAudio,
   advanceSpelling,
   closeAnswers,
@@ -14,7 +16,7 @@ import {
   markSpelling,
   openDefinitionVoting,
   openRoundQuestion,
-  moveCharadesPrompt,
+  finishCharadesSet,
   recordCharadesAttempt,
   markSubmission,
   observeGame,
@@ -26,9 +28,8 @@ import {
   revealRoundPoints,
   scoreAndReveal,
   showLeaderboard,
-  startRoundTimer,
-  stopRoundTimer,
-  setRoundDisplayOverlay,
+  setCharadesClueResult,
+  startCharadesSet,
   setSubmissionBonus,
   skipToNextRound,
 } from "../shared/game-engine.js";
@@ -38,10 +39,8 @@ import {
 } from "../shared/games/party-game.js";
 import { maintainHostPresence } from "../shared/host-presence.js";
 import {
-  awardGroupPoints,
   generateGrouping,
   groupingModes,
-  nextActiveGroupId,
   observeGrouping,
   participationModes,
   setActiveGroup,
@@ -60,12 +59,11 @@ import {
   resetGame,
 } from "../shared/session-state.js";
 import { spellingBeeWords } from "./rounds/spelling-bee/content.js";
-import { charadesPromptSets } from "./rounds/charades/content.js";
+import { wouldIMimeSets } from "./rounds/charades/content.js";
 import {
   definitionContent,
   getHostContent,
 } from "./rounds/demo-night/content.js";
-import { remainingTimerSeconds } from "../shared/presentation.js";
 import { hostSubmissionLabel } from "./marking-presentation.js";
 
 const nextButton = document.querySelector("#next");
@@ -113,20 +111,20 @@ const spellingMarking = document.querySelector("#spelling-marking");
 const spellingCorrect = document.querySelector("#spelling-correct");
 const spellingIncorrect = document.querySelector("#spelling-incorrect");
 const charadesHost = document.querySelector("#charades-host");
-const charadesGroup = document.querySelector("#charades-group");
-const charadesPrompt = document.querySelector("#charades-prompt");
-const charadesSeconds = document.querySelector("#charades-seconds");
-const charadesStartTimer = document.querySelector("#charades-start-timer");
-const charadesStopTimer = document.querySelector("#charades-stop-timer");
-const charadesOverlay = document.querySelector("#charades-overlay");
-const charadesScoreButtons = document.querySelector("#charades-score-buttons");
-const charadesAttempt = document.querySelector("#charades-attempt");
-const charadesCorrectCount = document.querySelector("#charades-correct-count");
-const charadesSkippedCount = document.querySelector("#charades-skipped-count");
-const charadesTime = document.querySelector("#charades-time");
-const charadesCategory = document.querySelector("#charades-category");
+const charadesLive = document.querySelector("#charades-live");
+const charadesControl = document.querySelector("#charades-control");
+const charadesClue = document.querySelector("#charades-clue");
+const charadesPassButton = document.querySelector("#charades-pass");
 const charadesCorrectButton = document.querySelector("#charades-correct");
-const charadesSkipButton = document.querySelector("#charades-skip");
+const charadesStartSetButton = document.querySelector("#charades-start-set");
+const charadesSetLabel = document.querySelector("#charades-set-label");
+const charadesTeam = document.querySelector("#charades-team");
+const charadesSetStatus = document.querySelector("#charades-set-status");
+const charadesSummary = document.querySelector("#charades-summary");
+const charadesSetScore = document.querySelector("#charades-set-score");
+const charadesClueResults = document.querySelector("#charades-clue-results");
+const charadesConfirmScore = document.querySelector("#charades-confirm-score");
+const charadesNextSet = document.querySelector("#charades-next-set");
 const audioControls = document.querySelector("#audio-controls");
 const audioFile = document.querySelector("#audio-file");
 const audioStatus = document.querySelector("#audio-status");
@@ -184,12 +182,27 @@ observeGame((snapshot) => {
   phaseLabel.textContent = "Unable to connect to Firebase.";
 });
 
+let finishingExpiredCharadesSet = false;
 setInterval(() => {
+  const set = gameSnapshot?.round?.sets?.[
+    gameSnapshot?.round?.activeSetIndex ?? 0
+  ];
   if (
     gameSnapshot?.definition?.type === roundTypes.charades &&
-    gameSnapshot?.state.phase === phases.question
+    gameSnapshot?.state.phase === phases.question &&
+    gameSnapshot?.round?.charadesPhase === charadesSetPhases.active &&
+    set?.timer?.status === "running" &&
+    Date.now() >= set.timer.endsAt &&
+    !finishingExpiredCharadesSet
   ) {
-    renderCharadesHost(gameSnapshot.state, gameSnapshot.round);
+    finishingExpiredCharadesSet = true;
+    finishCharadesSet()
+      .catch((error) =>
+        console.error("[BBQ host] Unable to finish expired set.", error),
+      )
+      .finally(() => {
+        finishingExpiredCharadesSet = false;
+      });
   }
 }, 250);
 
@@ -231,9 +244,9 @@ nextButton.addEventListener("click", async () => {
   const action = {
     [phases.lobby]: () => beginRound(roundSelect.value),
     [phases.opening]: openRoundQuestion,
-    [phases.question]: spellingRound
+    [phases.question]: spellingRound || charadesRound
       ? null
-      : charadesRound || pairingRound
+      : pairingRound
       ? finishRound
       : closeAnswers,
     [phases.marking]: definitionRound
@@ -287,33 +300,31 @@ spellingIncorrect.addEventListener("click", () =>
   markCurrentSpelling(false, spellingIncorrect),
 );
 
-document.querySelector("#charades-previous-prompt").addEventListener("click", (event) =>
-  runAction(event.currentTarget, () => moveCharadesPrompt(-1)),
-);
-document.querySelector("#charades-next-prompt").addEventListener("click", (event) =>
-  runAction(event.currentTarget, () => moveCharadesPrompt(1)),
-);
-charadesStartTimer.addEventListener("click", () =>
-  runAction(charadesStartTimer, () => startRoundTimer(charadesSeconds.value)),
-);
-charadesStopTimer.addEventListener("click", () =>
-  runAction(charadesStopTimer, stopRoundTimer),
+charadesStartSetButton.addEventListener("click", () =>
+  runAction(charadesStartSetButton, startCharadesSet),
 );
 charadesCorrectButton.addEventListener("click", () =>
   runAction(charadesCorrectButton, () => recordCharadesAttempt("correct")),
 );
-charadesSkipButton.addEventListener("click", () =>
-  runAction(charadesSkipButton, () => recordCharadesAttempt("skipped")),
+charadesPassButton.addEventListener("click", () =>
+  runAction(charadesPassButton, () => recordCharadesAttempt("passed")),
 );
-charadesOverlay.addEventListener("click", () =>
-  runAction(charadesOverlay, () =>
-    setRoundDisplayOverlay(gameSnapshot?.round?.displayMode !== "overlay"),
-  ),
-);
-charadesScoreButtons.addEventListener("click", (event) => {
-  const button = event.target.closest("button[data-charades-points]");
-  if (button) awardCurrentCharadesGroup(button.dataset.charadesPoints, button);
+charadesClueResults.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-charades-clue-index]");
+  if (!button) return;
+  runAction(button, () =>
+    setCharadesClueResult(
+      button.dataset.charadesClueIndex,
+      button.dataset.correct !== "true",
+    ),
+  );
 });
+charadesConfirmScore.addEventListener("click", () =>
+  runAction(charadesConfirmScore, confirmCharadesSetScore),
+);
+charadesNextSet.addEventListener("click", () =>
+  runAction(charadesNextSet, advanceCharadesSet),
+);
 document.querySelector("#generate-teams").addEventListener("click", (event) =>
   runAction(event.currentTarget, () =>
     generateGrouping(groupingModes.twoTeams, participationModes.turnBased),
@@ -431,6 +442,12 @@ function renderGame(snapshot) {
   gamePanel.hidden = !definition || isSpelling || isCharades;
   spellingHost.hidden = !isSpelling;
   charadesHost.hidden = !isCharades || state.phase !== phases.question;
+  document.body.classList.toggle(
+    "charades-live-mode",
+    isCharades &&
+      state.phase === phases.question &&
+      round?.charadesPhase === charadesSetPhases.active,
+  );
   renderAudioControls(definition, round, state.phase);
   bulkActions.hidden =
     state.phase !== phases.marking ||
@@ -523,6 +540,7 @@ function renderGame(snapshot) {
   };
 
   nextButton.textContent = nextLabels[state.phase] ?? "NEXT";
+  nextButton.hidden = isCharades && state.phase === phases.question;
   nextButton.disabled =
     (isSpelling && state.phase === phases.question) ||
     (stagedReveal &&
@@ -602,39 +620,62 @@ function renderAudioControls(definition, round, phase) {
 }
 
 function renderCharadesHost(state, round) {
-  const active = latestGrouping.activeGroup;
-  charadesGroup.textContent =
-    active?.members?.map((member) => member.name).join(" · ") ??
-    "No group selected";
-  const prompt =
-    charadesPromptSets[gameSnapshot?.definition?.promptSetIndex ?? 0]?.[
-      Math.max(0, latestGrouping.groups.findIndex(
-        (group) => group.id === latestGrouping.activeGroupId,
-      )) * 5 + Math.min(4, round?.promptIndex ?? 0)
-    ];
-  charadesPrompt.textContent = prompt?.prompt ?? "No prompt configured";
-  charadesCategory.textContent = prompt?.category ?? "";
-  charadesAttempt.textContent = `${Math.min(5, round?.attemptNumber ?? 1)} / 5`;
-  charadesCorrectCount.textContent = String(round?.correctGuesses ?? 0);
-  charadesSkippedCount.textContent = String(round?.skippedPrompts ?? 0);
-  charadesTime.textContent = String(
-    remainingTimerSeconds(round?.timer) ?? Number(charadesSeconds.value),
+  const setIndex = round?.activeSetIndex ?? 0;
+  const set = round?.sets?.[setIndex];
+  const definitionSet = gameSnapshot?.definition?.sets?.[setIndex];
+  const hostSet = wouldIMimeSets[setIndex];
+  if (!set || !definitionSet || !hostSet) return;
+
+  const team = latestGrouping.groups.find(
+    (group) => group.id === set.teamGroupId,
   );
-  const finishedSet = (round?.attemptNumber ?? 1) > 5;
-  charadesCorrectButton.disabled = finishedSet;
-  charadesSkipButton.disabled = finishedSet;
-  charadesOverlay.textContent =
-    round?.displayMode === "overlay"
-      ? "HIDE ACTIVE OVERLAY"
-      : "SHOW ACTIVE OVERLAY";
-  charadesStartTimer.disabled = state.phase !== phases.question;
-  charadesStopTimer.disabled =
-    state.phase !== phases.question || round?.timer?.status !== "running";
-  charadesScoreButtons.querySelectorAll("button").forEach((button) => {
-    button.disabled = state.phase !== phases.question || !active;
-  });
-  charadesCorrectButton.disabled = state.phase !== phases.question;
-  charadesSkipButton.disabled = state.phase !== phases.question;
+  const active = round.charadesPhase === charadesSetPhases.active;
+  const summary = [
+    charadesSetPhases.summary,
+    charadesSetPhases.confirmed,
+  ].includes(round.charadesPhase);
+  const confirmed = round.charadesPhase === charadesSetPhases.confirmed;
+  const lastSet = setIndex === round.sets.length - 1;
+
+  charadesLive.hidden = !active;
+  charadesControl.hidden = active;
+  charadesClue.textContent =
+    hostSet.clues[set.activeClueIndex] ?? "";
+  charadesPassButton.disabled = !active;
+  charadesCorrectButton.disabled = !active;
+
+  charadesSetLabel.textContent = `SET ${set.setNumber} OF ${round.sets.length}`;
+  charadesTeam.textContent = team?.name ?? `TEAM ${definitionSet.teamIndex + 1}`;
+  charadesSetStatus.textContent = confirmed
+    ? `Score confirmed: ${set.score} / 5`
+    : summary
+      ? "Check each result before confirming the score."
+      : "Ready when your performer has the Host phone.";
+  charadesStartSetButton.hidden = summary;
+  charadesStartSetButton.disabled =
+    state.phase !== phases.question ||
+    round.charadesPhase !== charadesSetPhases.holding;
+  charadesSummary.hidden = !summary;
+  charadesSetScore.textContent = String(set.score ?? 0);
+  charadesConfirmScore.hidden = confirmed;
+  charadesNextSet.hidden = !confirmed;
+  charadesNextSet.textContent = lastSet ? "FINISH ROUND" : "NEXT SET";
+
+  charadesClueResults.replaceChildren(
+    ...hostSet.clues.map((clue, index) => {
+      const correct = set.clues[index]?.status === "correct";
+      const item = document.createElement("li");
+      item.className = correct ? "is-correct" : "is-not-correct";
+      item.innerHTML = `<span>${escapeHtml(clue)}</span><button class="${
+        correct ? "mark-correct" : "secondary"
+      }" type="button" data-charades-clue-index="${index}" data-correct="${
+        correct
+      }" ${confirmed ? "disabled" : ""}>${
+        correct ? "CORRECT" : "NOT CORRECT"
+      }</button>`;
+      return item;
+    }),
+  );
 }
 
 function renderSpellingHost(state, round) {
@@ -666,23 +707,6 @@ async function markCurrentSpelling(correct, button) {
     (gameSnapshot?.round?.itemIndex ?? 0) % spellingBeeWords.length
   ];
   await runAction(button, () => markSpelling({ word: item.word, correct }));
-}
-
-async function awardCurrentCharadesGroup(points, button) {
-  const groupId = latestGrouping.activeGroupId;
-  if (!groupId) return;
-  await runAction(button, async () => {
-    await awardGroupPoints(groupId, points, {
-      roundType: roundTypes.charades,
-      promptIndex: gameSnapshot?.round?.promptIndex ?? 0,
-    });
-    const nextId = nextActiveGroupId(
-      latestGrouping.groups ?? [],
-      groupId,
-      1,
-    );
-    if (nextId && nextId !== groupId) await activateCharadesTeam(nextId);
-  });
 }
 
 function renderGrouping() {
@@ -1067,35 +1091,3 @@ function escapeHtml(value) {
   element.textContent = value;
   return element.innerHTML;
 }
-
-document.addEventListener("keydown", (event) => {
-  if (
-    gameSnapshot?.definition?.type !== roundTypes.charades ||
-    gameSnapshot?.state.phase !== phases.question ||
-    ["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement?.tagName)
-  ) {
-    return;
-  }
-  const action = {
-    "[": () => moveCharadesPrompt(-1),
-    "]": () => moveCharadesPrompt(1),
-    " ": () =>
-      gameSnapshot?.round?.timer?.status === "running"
-        ? stopRoundTimer()
-        : startRoundTimer(charadesSeconds.value),
-  }[event.key];
-  if (action) {
-    event.preventDefault();
-    Promise.resolve(action()).catch((error) =>
-      console.error("[BBQ host] Keyboard control failed.", error),
-    );
-    return;
-  }
-  if (/^[0-5]$/.test(event.key)) {
-    event.preventDefault();
-    const button = charadesScoreButtons.querySelector(
-      `[data-charades-points="${event.key}"]`,
-    );
-    awardCurrentCharadesGroup(event.key, button);
-  }
-});
