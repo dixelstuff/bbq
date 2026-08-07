@@ -142,23 +142,25 @@ export const googlebelRounds = [
     answer: "I just wanted to go home.",
     notes:
       "Setup: Seth Cohen is describing his disastrous first sexual experience with Summer.",
-    video: { id: "googlebel-oc-video", initialStop: 44.8, answerLead: 13 },
+    video: { id: "googlebel-oc-video", initialStop: 44.8, answerLead: 10 },
   },
   {
     id: "googlebel-game-of-thrones",
-    question: "Tyrion replies to Varys: “Because ______.”",
+    question:
+      "Varys: “You take great offence at dwarf jokes, but love telling eunuch jokes. Why is that?”\nTyrion replies: “Because ______.”",
     answer: "I have balls, and you don’t.",
     notes:
       "Setup: Varys asks Tyrion why he takes offence at dwarf jokes but enjoys making jokes about eunuchs.",
-    video: { id: "googlebel-got-video", initialStop: 13.5, answerLead: 13 },
+    video: { id: "googlebel-got-video", initialStop: 13.5, answerLead: 10 },
   },
   {
     id: "googlebel-fleabag",
-    question: "What does Fleabag say when she turns to camera?",
+    question:
+      "After a tense Tube montage, Fleabag turns directly to camera. Complete her aside: “______.”",
     answer: "I think my period's coming.",
     notes:
       "Setup: The Tube/train scene begins with music and visual comedy before Fleabag turns directly to camera.",
-    video: { id: "googlebel-fleabag-video", initialStop: 48.6, answerLead: 13 },
+    video: { id: "googlebel-fleabag-video", initialStop: 48.6, answerLead: 10 },
   },
 ].map((round) =>
   comedyRound({
@@ -173,7 +175,7 @@ export const googlebelRounds = [
 export const thankGodYoureLyricsRounds = [
   {
     id: "lyrics-teenage-dirtbag",
-    question: "Her name is Noelle\nI have a dream about her\nShe rings my bell",
+    question: "Her name is Noelle\nI have a dream about her\nShe rings my bell\n______",
     answer: "I got gym class in half an hour",
     song: "Teenage Dirtbag",
     artist: "Wheatus",
@@ -181,7 +183,7 @@ export const thankGodYoureLyricsRounds = [
   {
     id: "lyrics-torn",
     question:
-      "So I guess the fortune teller's right\nShould have seen just what was there",
+      "So I guess the fortune teller's right\nShould have seen just what was there\n______",
     answer: "and not some holy light",
     song: "Torn",
     artist: "Natalie Imbruglia",
@@ -189,7 +191,7 @@ export const thankGodYoureLyricsRounds = [
   {
     id: "lyrics-no-aphrodisiac",
     question:
-      "Truth, youth, beauty, fame, boredom, red hair, no hair\n[ THREE WORD GAP ]\nand a picture of you",
+      "Truth, youth, beauty, fame, boredom, red hair, no hair\n______\nand a picture of you",
     answer: "Innocence, awkwardness, impunity",
     song: "No Aphrodisiac",
     artist: "The Whitlams",
@@ -197,7 +199,7 @@ export const thankGodYoureLyricsRounds = [
   },
   {
     id: "lyrics-gangstas-paradise",
-    question: "Fool, I'm the kinda G the little homies wanna be like",
+    question: "Fool, I'm the kinda G the little homies wanna be like\n______",
     answer:
       "On my knees in the night, sayin' prayers in the streetlight",
     song: "Gangsta’s Paradise",

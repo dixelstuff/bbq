@@ -16,6 +16,11 @@ test("neither public Player shell contains Host entry or password UI", async () 
   assert.doesNotMatch(rootHtml, /join as host|host-dialog|host-password/i);
   assert.doesNotMatch(playerHtml, /join as host|host-dialog|host-password/i);
   assert.doesNotMatch(script, /hostOpenButton|hostPassword|observeHostConnected/);
+  assert.doesNotMatch(rootHtml, /Waiting\s*[—-]\s*screen/i);
+  assert.match(rootHtml, /id="answer-instruction"/);
+  assert.match(rootHtml, /id="lyrics-next-line"/);
+  assert.match(rootHtml, /id="lyrics-song-title"/);
+  assert.match(rootHtml, /id="lyrics-artist"/);
 });
 
 test("team setup exposes only shuffle and Display presentation controls", async () => {

@@ -32,7 +32,7 @@ test("Googlebel and Lyrics declare their Display video cues", () => {
     googlebelRounds.map((round) => round.video.initialStop),
     [44.8, 13.5, 48.6],
   );
-  assert.ok(googlebelRounds.every((round) => round.video.answerLead === 13));
+  assert.ok(googlebelRounds.every((round) => round.video.answerLead === 10));
   assert.ok(
     thankGodYoureLyricsRounds.every(
       (round) => round.video.fullAfterAnswer === true,
@@ -43,6 +43,7 @@ test("Googlebel and Lyrics declare their Display video cues", () => {
 test("Thank God You’re Lyrics contains four staged manual questions worth 0–3", () => {
   assert.equal(thankGodYoureLyricsRounds.length, 4);
   for (const round of thankGodYoureLyricsRounds) {
+    assert.match(round.question, /______/);
     assert.equal(round.type, roundTypes.bestFreeText);
     assert.equal(round.scoring.strategy, scoringStrategies.manual);
     assert.equal(round.scoring.maxPoints, 3);

@@ -53,6 +53,10 @@ const questionText = document.querySelector("#question-text");
 const answerForm = document.querySelector("#answer-form");
 const answerInput = document.querySelector("#answer");
 const answerTextControl = document.querySelector("#answer-text-control");
+const lyricsAnswerFields = document.querySelector("#lyrics-answer-fields");
+const lyricsNextLine = document.querySelector("#lyrics-next-line");
+const lyricsSongTitle = document.querySelector("#lyrics-song-title");
+const lyricsArtist = document.querySelector("#lyrics-artist");
 const answerInstruction = document.querySelector("#answer-instruction");
 const choiceOptions = document.querySelector("#choice-options");
 const answerButton = document.querySelector("#answer-submit");
@@ -99,6 +103,9 @@ answerInput.addEventListener("input", () => {
     sessionStorage.setItem(`bbq.answerDraft.${answerDraftRoundKey}`, answerInput.value);
   }
 });
+[lyricsNextLine, lyricsSongTitle, lyricsArtist].forEach((field) => {
+  field.addEventListener("input", saveLyricsDraft);
+});
 updatePlayerMode();
 updateDebugPanel();
 startStateObserver();
@@ -116,7 +123,24 @@ refreshButton.addEventListener("click", () => {
 
 answerForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  await submitPlayerAnswer(answerInput.value);
+  const lyricsRound = isLyricsRound(gameSnapshot?.definition);
+  if (lyricsRound) {
+    const missingField = [lyricsNextLine, lyricsSongTitle, lyricsArtist].find(
+      (field) => !field.value.trim(),
+    );
+    if (missingField) {
+      answerStatus.dataset.error = "true";
+      answerStatus.textContent = "Complete the next line, song title and artist.";
+      missingField.focus();
+      return;
+    }
+  }
+  await submitPlayerAnswer(
+    lyricsRound
+      ? formatLyricsAnswer(lyricsNextLine.value, lyricsSongTitle.value, lyricsArtist.value)
+      : answerInput.value,
+    lyricsRound ? lyricsNextLine : answerInput,
+  );
 });
 
 choiceOptions.addEventListener("click", async (event) => {
@@ -145,7 +169,7 @@ definitionOptions.addEventListener("click", async (event) => {
   }
 });
 
-async function submitPlayerAnswer(rawAnswer) {
+async function submitPlayerAnswer(rawAnswer, focusTarget = answerInput) {
   const answer = String(rawAnswer ?? "").trim();
   if (currentState.phase !== phases.question) {
     return;
@@ -153,11 +177,12 @@ async function submitPlayerAnswer(rawAnswer) {
   if (!answer) {
     answerStatus.dataset.error = "true";
     answerStatus.textContent = "Enter an answer.";
-    answerInput.focus();
+    focusTarget.focus();
     return;
   }
 
   answerInput.disabled = true;
+  setLyricsFieldsDisabled(true);
   answerButton.disabled = true;
   answerStatus.dataset.error = "false";
   answerStatus.textContent = "Submitting…";
@@ -168,6 +193,7 @@ async function submitPlayerAnswer(rawAnswer) {
   } catch (error) {
     console.error("[BBQ player] Unable to submit answer.", error);
     answerInput.disabled = false;
+    setLyricsFieldsDisabled(false);
     answerButton.disabled = false;
     answerStatus.dataset.error = "true";
     answerStatus.textContent =
@@ -706,12 +732,16 @@ function renderPlayerGame() {
     playerRoundType.textContent = definition.typeLabel;
     questionText.textContent = definition.question;
     const numeric = definition.type === roundTypes.closestWins;
+    const lyricsRound = isLyricsRound(definition);
     const roundKey = `${definition.id}:${definition.puzzle?.id ?? ""}:${
       gameSnapshot?.round?.startedAt ?? ""
     }`;
     if (answerDraftRoundKey !== roundKey) {
       answerDraftRoundKey = roundKey;
       answerInput.value = sessionStorage.getItem(`bbq.answerDraft.${roundKey}`) ?? "";
+      lyricsNextLine.value = sessionStorage.getItem(`bbq.lyricsDraft.${roundKey}.line`) ?? "";
+      lyricsSongTitle.value = sessionStorage.getItem(`bbq.lyricsDraft.${roundKey}.song`) ?? "";
+      lyricsArtist.value = sessionStorage.getItem(`bbq.lyricsDraft.${roundKey}.artist`) ?? "";
     }
     const choices = definition.choices ?? [];
     answerInstruction.textContent = definition.prompt ?? "";
@@ -720,7 +750,8 @@ function renderPlayerGame() {
     answerInput.placeholder = numeric
       ? "Enter a number"
       : definition.prompt ?? "";
-    answerTextControl.hidden = choices.length > 0;
+    answerTextControl.hidden = choices.length > 0 || lyricsRound;
+    lyricsAnswerFields.hidden = !lyricsRound;
     answerButton.hidden = choices.length > 0;
     choiceOptions.hidden = choices.length === 0;
     choiceOptions.replaceChildren(
@@ -740,11 +771,14 @@ function renderPlayerGame() {
     if (submission) {
       answerInput.value = submission.answer;
       answerInput.disabled = true;
+      if (lyricsRound) populateLyricsFields(submission.answer);
+      setLyricsFieldsDisabled(true);
       answerButton.disabled = true;
       answerStatus.dataset.error = "false";
       answerStatus.textContent = "Answer submitted";
     } else {
       answerInput.disabled = false;
+      setLyricsFieldsDisabled(false);
       answerButton.disabled = false;
       answerStatus.textContent = "";
     }
@@ -814,6 +848,45 @@ function renderPlayerGame() {
   }
 
   waitingView.hidden = false;
+}
+
+function isLyricsRound(definition) {
+  return definition?.section === "THANK GOD YOU’RE LYRICS";
+}
+
+function formatLyricsAnswer(line, song, artist) {
+  return [
+    `Next line: ${String(line ?? "").trim()}`,
+    `Song title: ${String(song ?? "").trim()}`,
+    `Artist: ${String(artist ?? "").trim()}`,
+  ].join("\n");
+}
+
+function populateLyricsFields(answer) {
+  const values = Object.fromEntries(
+    String(answer ?? "").split("\n").map((line) => {
+      const separator = line.indexOf(":");
+      return separator < 0
+        ? ["", ""]
+        : [line.slice(0, separator).trim(), line.slice(separator + 1).trim()];
+    }),
+  );
+  lyricsNextLine.value = values["Next line"] ?? "";
+  lyricsSongTitle.value = values["Song title"] ?? "";
+  lyricsArtist.value = values.Artist ?? "";
+}
+
+function setLyricsFieldsDisabled(disabled) {
+  [lyricsNextLine, lyricsSongTitle, lyricsArtist].forEach((field) => {
+    field.disabled = disabled;
+  });
+}
+
+function saveLyricsDraft() {
+  if (!answerDraftRoundKey) return;
+  sessionStorage.setItem(`bbq.lyricsDraft.${answerDraftRoundKey}.line`, lyricsNextLine.value);
+  sessionStorage.setItem(`bbq.lyricsDraft.${answerDraftRoundKey}.song`, lyricsSongTitle.value);
+  sessionStorage.setItem(`bbq.lyricsDraft.${answerDraftRoundKey}.artist`, lyricsArtist.value);
 }
 
 function updateBadge(name = loadPlayerName()) {

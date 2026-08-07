@@ -193,7 +193,8 @@ body {
 .round-artwork {
   width: 100vw;
   height: 100vh;
-  object-fit: cover;
+  object-fit: contain;
+  background: #000;
 }
 
 .production-title-in .round-artwork {
@@ -257,7 +258,8 @@ body {
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  background: #000;
   opacity: 0.18;
   filter: blur(2px) saturate(0.7);
 }
@@ -353,7 +355,8 @@ body {
 
 .timer-artwork {
   z-index: -2;
-  object-fit: cover;
+  object-fit: contain;
+  background: #000;
 }
 
 .timer-shade {
@@ -448,6 +451,10 @@ body {
 
 .reveal-correct-answer.is-genuine {
   display: grid;
+  box-sizing: border-box;
+  width: min(90vw, 70rem);
+  max-width: 90vw;
+  max-height: 38vh;
   justify-items: center;
   gap: 0.25rem;
   padding: 0.55em 1em;
@@ -456,6 +463,7 @@ body {
   border: 2px solid rgb(168 240 206 / 65%);
   border-radius: 1rem;
   box-shadow: 0 1.2rem 4rem rgb(0 0 0 / 35%);
+  overflow: hidden;
   animation: genuine-answer-in 420ms ease-out both;
 }
 
@@ -465,15 +473,24 @@ body {
 }
 
 .genuine-lyric {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
   font-size: 0.68em;
   line-height: 1.08;
+  overflow-wrap: anywhere;
+  text-align: center;
 }
 
 .genuine-credit {
+  min-width: 0;
+  max-width: 100%;
   color: #ffe28a;
   font-size: 0.42em;
   font-weight: 800;
   letter-spacing: 0.04em;
+  overflow-wrap: anywhere;
+  text-align: center;
 }
 
 @keyframes genuine-answer-in {
@@ -486,7 +503,7 @@ body {
   height: min(68vh, 43rem);
   border-radius: 1rem;
   object-fit: contain;
-  background: #d9eee4;
+  background: #000;
 }
 
 .display-game-screen h1,

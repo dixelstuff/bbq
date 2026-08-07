@@ -68,6 +68,7 @@ import {
 import { hostSubmissionLabel } from "./marking-presentation.js";
 
 const nextButton = document.querySelector("#next");
+const nextHelp = document.querySelector("#next-help");
 const joinedCount = document.querySelector("#joined-count");
 const disconnectedWarning = document.querySelector("#disconnected-warning");
 const disconnectedPlayers = document.querySelector("#disconnected-players");
@@ -259,7 +260,7 @@ nextButton.addEventListener("click", async () => {
   const action = {
     [phases.lobby]: () => beginRound(roundSelect.value),
     [phases.opening]: openRoundQuestion,
-    [phases.question]: spellingRound || charadesRound
+    [phases.question]: charadesRound
       ? null
       : pairingRound
       ? finishRound
@@ -558,6 +559,7 @@ function renderGame(snapshot) {
   };
 
   nextButton.textContent = nextLabels[state.phase] ?? "NEXT";
+  nextHelp.textContent = nextActionExplanation(state, definition, round, submissions);
   nextButton.hidden = isCharades && state.phase === phases.question;
   nextButton.disabled =
     (stagedReveal &&
@@ -589,6 +591,60 @@ function renderGame(snapshot) {
     !round?.revealGridFinalized ||
     (needsGenuineAnswer && !round?.genuineAnswerRevealed) ||
     Boolean(round?.revealPoints);
+}
+
+function nextActionExplanation(state, definition, round, submissions) {
+  const isSpelling = definition?.type === roundTypes.spellingBee;
+  if (state.phase === phases.opening && isSpelling) {
+    const nextOpening = definition.openingMedia?.[(round?.openingIndex ?? 0) + 1];
+    if (nextOpening) {
+      const names = {
+        "spelling-bel-title": "the Spelling Bel title slide",
+        "spelling-bel-rules": "the Spelling Bel rules slide",
+      };
+      return `Next shows ${names[nextOpening.id] ?? "the next opening slide"} on the Display.`;
+    }
+    return "Next opens the Hairbrush puzzle and allows players to submit words.";
+  }
+  if (state.phase === phases.opening) {
+    return "Next opens the question on the Display and allows phone submissions.";
+  }
+  if (state.phase === phases.question) {
+    if (definition?.type === roundTypes.charades) return "Use the round controls above to finish this set.";
+    if (definition?.type === roundTypes.pairingPrototype) return "Next finishes this round.";
+    return "Next closes phone submissions and opens Host marking.";
+  }
+  if (state.phase === phases.marking) {
+    return definition?.type === roundTypes.myDefinition
+      ? "Next opens voting on every player's phone."
+      : "Next reveals the marked results on the Display.";
+  }
+  if (state.phase === phases.voting) return "Next closes voting and reveals the real definition.";
+  if (state.phase === phases.reveal) {
+    if (!usesProgressiveFreeTextReveal(definition)) {
+      return "Next finishes this question and moves to the next question or round.";
+    }
+    const revealed = round?.revealedSubmissionIds?.length ?? 0;
+    if (usesProgressiveFreeTextReveal(definition) && revealed < submissions.length) {
+      return "Reveal each submitted answer first; Next remains unavailable until all are shown.";
+    }
+    if (!round?.revealGridFinalized && usesProgressiveFreeTextReveal(definition)) {
+      return "Next arranges all revealed answers into the final grid.";
+    }
+    if (requiresGenuineAnswerReveal(definition) && !round?.genuineAnswerRevealed) {
+      return definition?.video?.initialStop
+        ? "Play Answer Clip above to reveal the genuine line."
+        : "Next reveals the genuine answer.";
+    }
+    if (!round?.revealPoints && submissions.length) return "Next reveals the awarded points.";
+    if (isSpelling && (round?.puzzleIndex ?? 0) + 1 < (definition?.puzzles?.length ?? 0)) {
+      return "Next opens the Marathon puzzle for player submissions.";
+    }
+    return "Next finishes this question and moves to the next question or round.";
+  }
+  if (state.phase === phases.leaderboard) return "Next returns to the current round.";
+  if (state.phase === phases.intermission) return "Next starts the round selected above.";
+  return "Next starts the round selected above.";
 }
 
 function renderVideoControls(definition, round, phase, submissionCount) {

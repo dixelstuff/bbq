@@ -79,6 +79,14 @@ h1 {
   letter-spacing: 0.08em;
 }
 
+.lyrics-answer-fields {
+  gap: 0.45rem;
+}
+
+.lyrics-answer-fields label:not(:first-child) {
+  margin-top: 0.35rem;
+}
+
 h2 {
   font-size: 1.5rem;
   font-weight: 560;
@@ -164,6 +172,14 @@ button:disabled {
 
 .actions #next {
   box-shadow: 0 0.45rem 1.2rem rgb(24 24 22 / 18%);
+}
+
+.next-help {
+  margin: -0.25rem 0 0;
+  color: #5f5d57;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  text-align: right;
 }
 
 .actions #reset-game {

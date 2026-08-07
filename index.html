@@ -22,7 +22,6 @@
         <button type="submit">JOIN</button>
         <p id="status" class="status" role="status" aria-live="polite"></p>
       </form>
-      <p id="screen" aria-live="polite">Waiting — screen 1</p>
       <section id="waiting-view" class="player-waiting" hidden>
         <div class="bbq-wordmark" aria-label="BBQ">BBQ</div>
         <h1 id="waiting-message">Waiting for next round…</h1>
@@ -34,7 +33,16 @@
         <form id="answer-form" class="stack">
           <div id="answer-text-control" class="stack">
             <label for="answer">Your answer</label>
+            <p id="answer-instruction" class="answer-instruction"></p>
             <input id="answer" name="answer" maxlength="240" autocomplete="off" />
+          </div>
+          <div id="lyrics-answer-fields" class="lyrics-answer-fields stack" hidden>
+            <label for="lyrics-next-line">Next line</label>
+            <input id="lyrics-next-line" maxlength="240" autocomplete="off" />
+            <label for="lyrics-song-title">Song title</label>
+            <input id="lyrics-song-title" maxlength="120" autocomplete="off" />
+            <label for="lyrics-artist">Artist</label>
+            <input id="lyrics-artist" maxlength="120" autocomplete="off" />
           </div>
           <div id="choice-options" class="choice-options"></div>
           <button id="answer-submit" type="submit">SUBMIT</button>
