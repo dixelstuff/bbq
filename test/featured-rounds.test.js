@@ -24,7 +24,20 @@ test("the featured sections retain their supplied question packs", () => {
   assert.equal(csiKoonoomooRounds[0].answer, "an eyesore.");
   assert.equal(csiKoonoomooRounds[2].answer, "a big puddle in the middle of a paddock.");
   assert.equal(googlebelRounds[0].answer, "I just wanted to go home.");
-  assert.equal(googlebelRounds[2].answer, "erotic.");
+  assert.equal(googlebelRounds[2].answer, "I think my period's coming.");
+});
+
+test("Googlebel and Lyrics declare their Display video cues", () => {
+  assert.deepEqual(
+    googlebelRounds.map((round) => round.video.initialStop),
+    [44.8, 13.5, 48.6],
+  );
+  assert.ok(googlebelRounds.every((round) => round.video.answerLead === 13));
+  assert.ok(
+    thankGodYoureLyricsRounds.every(
+      (round) => round.video.fullAfterAnswer === true,
+    ),
+  );
 });
 
 test("Thank God You’re Lyrics contains four staged manual questions worth 0–3", () => {

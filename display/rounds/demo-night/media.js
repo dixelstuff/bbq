@@ -3,6 +3,11 @@ const image = (filename, alt) => ({
   alt,
 });
 
+const video = (filename) => ({
+  src: new URL(`../../../media/video/${filename}`, import.meta.url).href,
+  type: "video",
+});
+
 export const demoNightDisplayMedia = {
   "demo-mcq-title": image(
     "demo-mcq-title.png",
@@ -40,4 +45,11 @@ export const demoNightDisplayMedia = {
     "thank-god-youre-lyrics-title.png",
     "Thank God You’re Lyrics title artwork",
   ),
+  "googlebel-oc-video": video("OC stop at 44.8s.mp4"),
+  "googlebel-got-video": video("Game of throne end at 13.5s.mp4"),
+  "googlebel-fleabag-video": video("fleabag stop at 48.6s.mp4"),
+  "lyrics-teenage-dirtbag-video": video("teenage dirtbag.mp4"),
+  "lyrics-torn-video": video("torn.mp4"),
+  "lyrics-no-aphrodisiac-video": video("no aphrodisiac.mp4"),
+  "lyrics-gangstas-paradise-video": video("ganstas paradise.mp4"),
 };

@@ -230,16 +230,19 @@ test("group generation eligibility includes connected real and simulated players
   );
 });
 
-test("the Spelling Bee round declares an individual, quiet Display flow", async () => {
-  const { spellingBeeRound } = await import(
+test("Spelling Bel declares two manual free-text puzzles", async () => {
+  const { spellingBeeRound, spellingBelPuzzles } = await import(
     "../shared/rounds/spelling-bee/round.js"
   );
-  assert.equal(spellingBeeRound.grouping.mode, groupingModes.individual);
-  assert.equal(spellingBeeRound.participation, "turn-based");
+  assert.equal(spellingBeeRound.participation.mode, "individual");
+  assert.equal(spellingBeeRound.submission.kind, "text");
+  assert.equal(spellingBeeRound.submission.autoCloseWhenComplete, false);
   assert.equal(spellingBeeRound.display.overlay, false);
-  assert.equal(spellingBeeRound.display.phases.question, "artwork");
+  assert.equal(spellingBeeRound.display.phases.question, "media");
   assert.equal(spellingBeeRound.display.phases.reveal, "reveal");
   assert.equal(spellingBeeRound.media.title.visibility, "display");
+  assert.equal(spellingBeeRound.openingMedia.length, 3);
+  assert.equal(spellingBelPuzzles.length, 2);
 });
 
 test("Would I Mime to You uses four explicit team sets and a quiet Display", async () => {

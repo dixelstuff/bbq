@@ -39,8 +39,9 @@ export function requiresGenuineAnswerReveal(round) {
 
 export function awardsPointsAfterGenuineAnswer(round) {
   return Boolean(
-    requiresGenuineAnswerReveal(round) &&
-      round?.flow?.scoring?.afterGenuineAnswer,
+    (requiresGenuineAnswerReveal(round) &&
+      round?.flow?.scoring?.afterGenuineAnswer) ||
+      round?.flow?.scoring?.afterSubmissionsReveal,
   );
 }
 

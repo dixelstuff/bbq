@@ -17,6 +17,7 @@
         <p class="corner-player-count">0 players</p>
         <p id="display-round-type" class="display-round-type"></p>
         <img id="display-question-image" class="display-game-image" alt="" />
+        <p id="display-question-timer" class="display-question-timer" hidden>30</p>
         <h1 id="display-question"></h1>
         <p id="display-prompt" class="display-prompt"></p>
       </section>
@@ -42,20 +43,16 @@
         </div>
       </section>
 
-      <section id="spelling-reveal-screen" class="spelling-reveal-screen" hidden>
-        <img id="spelling-reveal-artwork" class="round-artwork" alt="" />
-        <div class="spelling-reveal-card">
-          <p id="spelling-reveal-status"></p>
-          <h1 id="spelling-reveal-word"></h1>
-        </div>
-      </section>
-
       <section id="timer-screen" class="timer-screen" hidden>
         <img id="timer-artwork" class="timer-artwork" alt="" />
         <div class="timer-shade"></div>
         <div class="timer-ring">
           <p id="timer-value">60</p>
         </div>
+      </section>
+
+      <section id="video-screen" class="video-screen" hidden>
+        <video id="round-video" playsinline></video>
       </section>
 
       <section id="reveal-screen" class="display-results-screen" hidden>
@@ -74,6 +71,9 @@
     </main>
     <button id="enable-audio" class="enable-audio" type="button" hidden>
       ENABLE DISPLAY SOUND
+    </button>
+    <button id="enable-video" class="enable-audio" type="button" hidden>
+      ENABLE DISPLAY VIDEO
     </button>
     <script type="module" src="./main.js"></script>
   </body>

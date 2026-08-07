@@ -35,7 +35,6 @@ const lifecycleDebounce = 150;
 const form = document.querySelector("#join-form");
 const input = document.querySelector("#name");
 const joinButton = form.querySelector('button[type="submit"]');
-const screen = document.querySelector("#screen");
 const status = document.querySelector("#status");
 const playerBadge = document.querySelector("#player-badge");
 const recoveryPanel = document.querySelector("#recovery-panel");
@@ -93,7 +92,6 @@ let answerDraftRoundKey;
 let confirmedLobbyName = loadPlayerName();
 
 debugPanel.hidden = !import.meta.env.DEV;
-screen.textContent = `Waiting — screen ${currentState.step}`;
 input.value = loadPlayerName();
 input.addEventListener("input", updateNameButtonState);
 answerInput.addEventListener("input", () => {
@@ -291,7 +289,7 @@ function startStateObserver(force = false) {
         "[BBQ player] Unable to observe game state; retrying.",
         error,
       );
-      screen.textContent = "Unable to connect";
+      status.textContent = "Unable to connect. Retrying…";
       stepRetryTimer = window.setTimeout(startStateObserver, retryDelay);
     });
 }
@@ -331,7 +329,6 @@ function handleSessionState(state) {
   const previousGeneration = currentState.generation;
   currentState = state;
   saveNumber(playerStepKey, state.step);
-  screen.textContent = `Waiting — screen ${state.step}`;
 
   const savedGeneration = loadNumber(playerGenerationKey, 0);
   const savedName = loadPlayerName();
@@ -600,7 +597,6 @@ function updatePlayerMode() {
 
   form.hidden = gameStarted;
   playerBadge.hidden = !gameStarted || !joined || !name;
-  screen.hidden = gameStarted;
 
   if (gameStarted) {
     updateBadge(name);
@@ -679,18 +675,6 @@ function renderPlayerGame() {
     return;
   }
 
-  if (definition?.type === roundTypes.spellingBee) {
-    waitingView.hidden = false;
-    const active = playerGroup?.id === groupingSnapshot.activeGroupId;
-    waitingMessage.textContent =
-      phase === phases.question && active
-        ? "You’re up."
-        : phase === phases.reveal && active
-          ? "The word has been revealed."
-          : "Spelling Bee is underway…";
-    return;
-  }
-
   if (
     definition?.type === roundTypes.charades &&
     phase === phases.question
@@ -722,7 +706,9 @@ function renderPlayerGame() {
     playerRoundType.textContent = definition.typeLabel;
     questionText.textContent = definition.question;
     const numeric = definition.type === roundTypes.closestWins;
-    const roundKey = `${definition.id}:${gameSnapshot?.round?.startedAt ?? ""}`;
+    const roundKey = `${definition.id}:${definition.puzzle?.id ?? ""}:${
+      gameSnapshot?.round?.startedAt ?? ""
+    }`;
     if (answerDraftRoundKey !== roundKey) {
       answerDraftRoundKey = roundKey;
       answerInput.value = sessionStorage.getItem(`bbq.answerDraft.${roundKey}`) ?? "";

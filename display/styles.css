@@ -46,26 +46,30 @@ body {
 }
 
 .waiting-screen {
+  position: relative;
   display: grid;
   place-content: center;
   justify-items: center;
-  gap: clamp(1.25rem, 3vh, 2.5rem);
+  gap: clamp(1rem, 2.2vh, 2rem);
   padding: 3rem 4rem;
 }
 
 #join-qr {
-  width: min(42vh, 36vw, 27rem);
+  width: min(31vh, 27vw, 20rem);
   height: auto;
   border-radius: 1rem;
 }
 
 .waiting-player-count {
+  position: fixed;
+  top: 2rem;
+  right: 2.5rem;
   margin: 0;
-  color: #a8f0ce;
-  font-size: clamp(3rem, 8vw, 7rem);
-  font-weight: 750;
-  letter-spacing: -0.05em;
-  line-height: 0.9;
+  color: #8eb9a7;
+  font-size: clamp(1rem, 2vw, 1.5rem);
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1;
 }
 
 .player-names {
@@ -75,9 +79,9 @@ body {
   columns: 3;
   column-gap: 3rem;
   color: #f4fff8;
-  font-size: clamp(1.5rem, 2.8vw, 2.6rem);
-  font-weight: 600;
-  line-height: 1.35;
+  font-size: clamp(2.2rem, 3.8vw, 4rem);
+  font-weight: 650;
+  line-height: 1.22;
   list-style: none;
   padding-left: 0;
   text-align: center;
@@ -127,13 +131,63 @@ body {
   padding: 4rem;
 }
 
+.spelling-bel-puzzle {
+  position: relative;
+  padding: 0;
+  background: #050d0a;
+}
+
+.spelling-bel-puzzle .display-game-image {
+  width: 100vw;
+  height: 100vh;
+  max-height: none;
+  object-fit: contain;
+}
+
+.spelling-bel-puzzle .corner-player-count,
+.spelling-bel-puzzle .display-round-type,
+.spelling-bel-puzzle h1,
+.spelling-bel-puzzle .display-prompt {
+  display: none;
+}
+
+.display-question-timer {
+  position: absolute;
+  right: 3vw;
+  bottom: 3vw;
+  z-index: 2;
+  min-width: 1.4em;
+  margin: 0;
+  padding: 0.12em 0.28em;
+  border-radius: 0.2em;
+  background: rgb(0 0 0 / 72%);
+  color: #fff;
+  font-size: clamp(5rem, 13vw, 10rem);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: center;
+}
+
 .artwork-screen,
 .spelling-reveal-screen,
-.timer-screen {
+.timer-screen,
+.video-screen {
   position: relative;
   min-height: 100vh;
   overflow: hidden;
   background: #050d0a;
+}
+
+.video-screen {
+  display: grid;
+  place-items: center;
+  background: #000;
+}
+
+.video-screen video {
+  width: 100vw;
+  height: 100vh;
+  object-fit: contain;
 }
 
 .round-artwork {
@@ -438,10 +492,14 @@ body {
 .display-game-screen h1,
 .display-center-screen h1,
 .display-results-screen h1 {
+  max-width: min(92vw, 80rem);
   margin: 0;
   font-size: clamp(3rem, 7vw, 7rem);
-  letter-spacing: -0.05em;
+  font-weight: 520;
+  letter-spacing: -0.012em;
+  line-height: 1.1;
   text-align: center;
+  text-wrap: balance;
 }
 
 .display-game-screen h1 {
@@ -450,13 +508,13 @@ body {
 
 .display-game-screen h1[data-density="balanced"] {
   font-size: clamp(2.3rem, 4.8vw, 5rem);
-  line-height: 1.05;
+  line-height: 1.14;
 }
 
 .display-game-screen h1[data-density="compact"] {
   max-width: 92vw;
   font-size: clamp(1.75rem, 3.4vw, 3.5rem);
-  line-height: 1.08;
+  line-height: 1.18;
 }
 
 .display-center-screen {
@@ -624,6 +682,7 @@ body {
   height: min(76vh, 48rem);
   padding-top: 1rem;
   gap: 1rem;
+  overflow: hidden;
 }
 
 .reveal-answers.free-text-stage:not(.is-final-grid)::before {
@@ -640,7 +699,8 @@ body {
   display: grid;
   grid-template-columns: 1fr;
   align-content: center;
-  min-height: 8rem;
+  min-width: 0;
+  min-height: 0;
   padding: 1.2rem 1.4rem;
   border: 1px solid rgb(168 240 206 / 24%);
   border-radius: 1.4rem;
@@ -648,18 +708,28 @@ body {
   color: #08211a;
   box-shadow: 0 1rem 2.5rem rgb(0 0 0 / 18%);
   backdrop-filter: none;
+  overflow: hidden;
 }
 
 .free-text-card > strong {
+  min-width: 0;
   color: #287441;
   font-size: clamp(1.05rem, 1.8vw, 1.55rem);
-  font-weight: 900;
-  letter-spacing: 0.12em;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+  overflow-wrap: anywhere;
 }
 
 .free-text-card .free-text-answer {
-  font-size: clamp(1.2rem, 2.3vw, 2rem);
-  line-height: 1.15;
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  font-size: clamp(1.05rem, 1.9vw, 1.7rem);
+  font-weight: 480;
+  letter-spacing: 0.005em;
+  line-height: 1.28;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .reveal-answers.free-text-stage .free-text-card.is-featured {
@@ -668,6 +738,7 @@ body {
   top: 50%;
   left: 50%;
   width: min(76vw, 64rem);
+  max-height: min(62vh, 34rem);
   min-height: min(34vh, 20rem);
   padding: clamp(2rem, 4vw, 4rem);
   transform: translate(-50%, -50%);
@@ -687,7 +758,8 @@ body {
 }
 
 .free-text-card.is-featured .free-text-answer {
-  font-size: clamp(2.2rem, 5vw, 5rem);
+  font-size: clamp(1.8rem, 4vw, 4rem);
+  line-height: 1.18;
 }
 
 .free-text-card.just-settled {

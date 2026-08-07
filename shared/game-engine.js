@@ -88,9 +88,10 @@ export async function observeGame(onChange) {
     const submissions = orderedSubmissions(session, state);
     const players = currentPlayers(session, state);
 
+    const definition = getRound(state.gameId, state.roundId);
     onChange({
       state,
-      definition: getRound(state.gameId, state.roundId),
+      definition: effectiveRoundDefinition(definition, session.round, state),
       nextDefinition: getRound(state.gameId, state.nextRoundId),
       round: session.round ?? {},
       submissions,
@@ -100,6 +101,26 @@ export async function observeGame(onChange) {
       ),
     });
   });
+}
+
+function effectiveRoundDefinition(definition, round, state) {
+  if (definition?.type !== roundTypes.spellingBee) return definition;
+  const puzzle = definition.puzzles?.[round?.puzzleIndex ?? 0];
+  const openingMedia = definition.openingMedia?.[round?.openingIndex ?? 0];
+  return {
+    ...definition,
+    ...(puzzle
+      ? { title: puzzle.title, question: puzzle.question }
+      : {}),
+    puzzle,
+    media: {
+      ...definition.media,
+      ...(puzzle?.media ? { question: puzzle.media } : {}),
+      ...(state.phase === phases.opening && openingMedia
+        ? { title: openingMedia }
+        : {}),
+    },
+  };
 }
 
 export async function beginRound(roundId = partyGame.rounds[0].id) {
@@ -174,6 +195,8 @@ export async function beginRound(roundId = partyGame.rounds[0].id) {
             }
           : {
               itemIndex: 0,
+              puzzleIndex: 0,
+              openingIndex: 0,
               promptIndex: 0,
               attemptNumber: 1,
               correctGuesses: 0,
@@ -203,14 +226,86 @@ export async function beginRound(roundId = partyGame.rounds[0].id) {
 export async function openRoundQuestion() {
   return transactSession((session, state) => {
     if (state.phase !== phases.opening) return;
+    const definition = getRound(state.gameId, state.roundId);
+    const openingCount = definition?.openingMedia?.length ?? 0;
+    const openingIndex = session.round?.openingIndex ?? 0;
+    if (openingIndex < openingCount - 1) {
+      return {
+        ...session,
+        round: { ...session.round, openingIndex: openingIndex + 1 },
+      };
+    }
+    const initialVideo = definition?.video?.initialStop;
     return {
       ...withPhase(session, state, phases.question),
       round: {
         ...session.round,
+        ...(Number.isFinite(initialVideo)
+          ? {
+              videoCommand: {
+                mode: "initial",
+                sequence: (session.round?.videoCommand?.sequence ?? 0) + 1,
+                requestedAt: Date.now(),
+              },
+              videoStatus: { state: "loading", mode: "initial" },
+            }
+          : {}),
         displayMode: displayModeForPhase(
-          getRound(state.gameId, state.roundId),
+          definition,
           phases.question,
         ),
+      },
+    };
+  });
+}
+
+export async function controlRoundVideo(mode) {
+  if (!["answer", "full"].includes(mode)) throw new Error("Unknown video mode");
+  return transactSession((session, state) => {
+    const definition = getRound(state.gameId, state.roundId);
+    if (!definition?.video || !session.round) return;
+    if (mode === "answer") {
+      const total = Object.keys(session.round.submissions ?? {}).length;
+      if (
+        state.phase !== phases.reveal ||
+        (session.round.revealedSubmissionIds ?? []).length !== total
+      ) return;
+    }
+    if (
+      mode === "full" &&
+      (state.phase !== phases.reveal || !session.round.genuineAnswerRevealed)
+    ) return;
+    return {
+      ...session,
+      round: {
+        ...session.round,
+        videoCommand: {
+          mode,
+          sequence: (session.round.videoCommand?.sequence ?? 0) + 1,
+          requestedAt: Date.now(),
+        },
+        videoStatus: { state: "loading", mode },
+      },
+    };
+  });
+}
+
+export async function reportRoundVideoStatus(roundId, status) {
+  return transactSession((session, state) => {
+    if (state.roundId !== roundId || !session.round) return;
+    const answerFinished =
+      status.mode === "answer" && status.state === "finished";
+    return {
+      ...session,
+      round: {
+        ...session.round,
+        videoStatus: {
+          state: status.state,
+          mode: status.mode,
+          message: String(status.message ?? ""),
+          updatedAt: Date.now(),
+        },
+        ...(answerFinished ? { genuineAnswerRevealed: true } : {}),
       },
     };
   });
@@ -253,64 +348,24 @@ export async function reportRoundAudioStatus(roundId, status) {
   });
 }
 
-export async function markSpelling({ word, correct }) {
-  const normalizedWord = String(word ?? "").trim().toUpperCase();
-  if (!normalizedWord) throw new Error("The spelling word is missing");
-
+export async function toggleSpellingBelPuzzleDisplay() {
   return transactSession((session, state) => {
     const definition = getRound(state.gameId, state.roundId);
     if (
-      state.phase !== phases.question ||
-      definition?.type !== roundTypes.spellingBee
-    ) {
-      return;
-    }
-
-    const activeGroup =
-      session.grouping?.groups?.[session.grouping?.activeGroupId];
-    const playerId = activeGroup?.memberIds?.[0];
-    const player = session.players?.[playerId];
-    if (!player) return;
-
-    const points = correct ? definition.scoring?.correctPoints ?? 1 : 0;
-    const players = {
-      ...session.players,
-      [playerId]: {
-        ...player,
-        score: (player.score ?? 0) + points,
-      },
-    };
-    const result = {
-      playerId,
-      playerName: session.lockedNames?.[playerId] ?? player.name,
-      word: normalizedWord,
-      correct: Boolean(correct),
-      points,
-      markedAt: Date.now(),
-    };
-
+      definition?.type !== roundTypes.spellingBee ||
+      ![phases.marking, phases.reveal].includes(state.phase)
+    ) return;
     return {
       ...session,
-      players,
       round: {
         ...session.round,
-        result,
-        displayMode: displayModes.reveal,
-        spellingResults: {
-          ...(session.round?.spellingResults ?? {}),
-          [`result-${Date.now()}`]: result,
-        },
-      },
-      state: {
-        ...state,
-        phase: phases.reveal,
-        phaseStartedAt: Date.now(),
+        forcePuzzleDisplay: !session.round?.forcePuzzleDisplay,
       },
     };
   });
 }
 
-export async function advanceSpelling() {
+export async function advanceSpellingBel() {
   return transactSession((session, state) => {
     const definition = getRound(state.gameId, state.roundId);
     if (
@@ -320,28 +375,25 @@ export async function advanceSpelling() {
       return;
     }
 
-    const groups = Object.values(session.grouping?.groups ?? {}).filter(
-      (group) => group.memberIds?.length,
-    );
-    const activeIndex = groups.findIndex(
-      (group) => group.id === session.grouping?.activeGroupId,
-    );
-    const nextGroup = groups[activeIndex + 1];
-    if (!nextGroup) {
+    const nextPuzzleIndex = (session.round?.puzzleIndex ?? 0) + 1;
+    if (nextPuzzleIndex >= (definition.puzzles?.length ?? 0)) {
       return completeRound(session, state);
     }
 
     return {
       ...session,
-      grouping: {
-        ...session.grouping,
-        activeGroupId: nextGroup.id,
-      },
       round: {
         ...session.round,
-        itemIndex: (session.round?.itemIndex ?? 0) + 1,
-        result: null,
-        displayMode: displayModes.artwork,
+        puzzleIndex: nextPuzzleIndex,
+        submissions: {},
+        timer: null,
+        revealedSubmissionIds: [],
+        revealCount: 0,
+        revealGridFinalized: false,
+        revealPoints: false,
+        genuineAnswerRevealed: true,
+        forcePuzzleDisplay: false,
+        displayMode: displayModes.media,
       },
       state: {
         ...state,

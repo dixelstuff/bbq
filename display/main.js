@@ -21,6 +21,11 @@ import {
 } from "../shared/presentation.js";
 import { production } from "./production.js";
 import { setupDisplayAudio, syncDisplayAudio } from "./audio-playback.js";
+import {
+  isDisplayVideoActive,
+  setupDisplayVideo,
+  syncDisplayVideo,
+} from "./video-playback.js";
 
 const joinUrl = "https://dixelstuff.github.io/bbq/";
 const waitingScreen = document.querySelector("#waiting-screen");
@@ -42,6 +47,7 @@ const playerNames = document.querySelector("#player-names");
 const qrCanvas = document.querySelector("#join-qr");
 const questionImage = document.querySelector("#display-question-image");
 const questionText = document.querySelector("#display-question");
+const displayQuestionTimer = document.querySelector("#display-question-timer");
 const displayRoundType = document.querySelector("#display-round-type");
 const displayPrompt = document.querySelector("#display-prompt");
 const holdingText = document.querySelector("#holding-text");
@@ -50,14 +56,13 @@ const revealRoundType = document.querySelector("#reveal-round-type");
 const revealCorrectAnswer = document.querySelector("#reveal-correct-answer");
 const revealAnswers = document.querySelector("#reveal-answers");
 const leaderboard = document.querySelector("#leaderboard");
-const spellingRevealScreen = document.querySelector("#spelling-reveal-screen");
-const spellingRevealArtwork = document.querySelector("#spelling-reveal-artwork");
-const spellingRevealStatus = document.querySelector("#spelling-reveal-status");
-const spellingRevealWord = document.querySelector("#spelling-reveal-word");
 const timerScreen = document.querySelector("#timer-screen");
 const timerValue = document.querySelector("#timer-value");
 const timerArtwork = document.querySelector("#timer-artwork");
 const enableAudioButton = document.querySelector("#enable-audio");
+const videoScreen = document.querySelector("#video-screen");
+const roundVideo = document.querySelector("#round-video");
+const enableVideoButton = document.querySelector("#enable-video");
 
 let players = [];
 let gameSnapshot;
@@ -68,6 +73,7 @@ let progressiveRevealFinalized = false;
 
 await ensureSessionRelease(releaseId, releaseOrder);
 setupDisplayAudio(enableAudioButton);
+setupDisplayVideo(roundVideo, enableVideoButton);
 
 QRCode.toCanvas(qrCanvas, joinUrl, {
   width: 520,
@@ -98,6 +104,7 @@ observeGrouping((grouping) => {
 observeGame((snapshot) => {
   gameSnapshot = snapshot;
   syncDisplayAudio(snapshot);
+  syncDisplayVideo(snapshot);
   renderGame(snapshot);
 }).catch((error) => {
   console.error("Unable to observe game", error);
@@ -137,6 +144,19 @@ function renderGame(snapshot) {
     return;
   }
 
+  if (isDisplayVideoActive(snapshot)) {
+    showOnly(videoScreen);
+    return;
+  }
+
+  if (
+    definition?.type === roundTypes.spellingBee &&
+    round?.forcePuzzleDisplay
+  ) {
+    renderSpellingBelPuzzle(definition, round);
+    return;
+  }
+
   if (state.phase === phases.lobby) {
     showOnly(waitingScreen);
     return;
@@ -159,7 +179,6 @@ function renderGame(snapshot) {
     }
     const mode = round?.displayMode ?? displayModeForPhase(definition, state.phase);
     if (
-      definition.type === roundTypes.spellingBee ||
       definition.type === roundTypes.pairingPrototype ||
       (definition.display &&
         [displayModes.artwork, displayModes.overlay].includes(mode))
@@ -188,6 +207,11 @@ function renderGame(snapshot) {
           ? "balanced"
           : "roomy";
     displayPrompt.textContent = definition.prompt ?? "";
+    questionScreen.classList.toggle(
+      "spelling-bel-puzzle",
+      definition.type === roundTypes.spellingBee,
+    );
+    renderSpellingBelTimer(definition, round);
     return;
   }
 
@@ -202,10 +226,6 @@ function renderGame(snapshot) {
   }
 
   if (state.phase === phases.reveal && definition) {
-    if (definition.type === roundTypes.spellingBee) {
-      renderSpellingReveal(definition, round);
-      return;
-    }
     showOnly(revealScreen);
     revealScreen.classList.toggle("mcq-results", definition.type === roundTypes.mcq);
     revealScreen.classList.toggle("lyric-results", Boolean(definition.genuineAnswer));
@@ -441,8 +461,8 @@ function showOnly(activeScreen) {
     leaderboardScreen,
     artworkScreen,
     groupsScreen,
-    spellingRevealScreen,
     timerScreen,
+    videoScreen,
   ].forEach((screen) => {
     screen.hidden = screen !== activeScreen;
   });
@@ -475,33 +495,6 @@ function renderArtwork(definition, mode) {
   );
 }
 
-function renderSpellingReveal(definition, round) {
-  showOnly(spellingRevealScreen);
-  const titleMedia = resolveDisplayMedia(
-    mediaForAudience(definition, "display", "title"),
-  );
-  spellingRevealArtwork.hidden = !titleMedia;
-  if (titleMedia) {
-    spellingRevealArtwork.src = titleMedia.src;
-    spellingRevealArtwork.alt = titleMedia.alt ?? "";
-  }
-  production.fadeArtwork(spellingRevealArtwork);
-  spellingRevealStatus.textContent = round?.result?.correct
-    ? "CORRECT"
-    : "INCORRECT";
-  spellingRevealStatus.className = round?.result?.correct
-    ? "is-correct"
-    : "is-incorrect";
-  spellingRevealWord.textContent = round?.result?.word ?? "";
-  const revealKey = `${round?.startedAt}:${round?.result?.markedAt}`;
-  production.playReveal(spellingRevealScreen, `reveal:${revealKey}`);
-  if (round?.result?.correct) {
-    production.playCorrect(`correct:${revealKey}`);
-  } else {
-    production.playWrong(`wrong:${revealKey}`);
-  }
-}
-
 function renderTimer(timer, definition) {
   showOnly(timerScreen);
   const title = resolveDisplayMedia(definition?.media?.title);
@@ -529,6 +522,36 @@ function renderTimerTick() {
     set?.timer
   ) {
     renderTimer(set.timer, gameSnapshot.definition);
+  }
+  if (
+    gameSnapshot?.definition?.type === roundTypes.spellingBee &&
+    gameSnapshot.state.phase === phases.question
+  ) {
+    renderSpellingBelTimer(gameSnapshot.definition, gameSnapshot.round);
+  }
+}
+
+function renderSpellingBelPuzzle(definition, round) {
+  showOnly(questionScreen);
+  questionScreen.classList.add("spelling-bel-puzzle");
+  const media = resolveDisplayMedia(mediaForAudience(definition, "display"));
+  questionImage.hidden = !media;
+  if (media) {
+    questionImage.src = media.src;
+    questionImage.alt = `${definition.puzzle?.title ?? "Spelling Bel"} puzzle`;
+  }
+  displayRoundType.textContent = "SPELLING BEL";
+  questionText.textContent = "";
+  displayPrompt.textContent = "";
+  renderSpellingBelTimer(definition, round);
+}
+
+function renderSpellingBelTimer(definition, round) {
+  const spelling = definition?.type === roundTypes.spellingBee;
+  const duringPuzzle = gameSnapshot?.state.phase === phases.question;
+  displayQuestionTimer.hidden = !spelling || !round?.timer || !duringPuzzle;
+  if (spelling && round?.timer && duringPuzzle) {
+    displayQuestionTimer.textContent = String(remainingTimerSeconds(round.timer));
   }
 }
 

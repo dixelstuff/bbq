@@ -6,14 +6,14 @@ import {
   beginRound,
   charadesSetPhases,
   confirmCharadesSetScore,
+  controlRoundVideo,
   controlRoundAudio,
-  advanceSpelling,
+  advanceSpellingBel,
   closeAnswers,
   closeDefinitionVoting,
   finishRound,
   hideLeaderboard,
   markAllRemaining,
-  markSpelling,
   openDefinitionVoting,
   openRoundQuestion,
   finishCharadesSet,
@@ -30,8 +30,10 @@ import {
   showLeaderboard,
   setCharadesClueResult,
   startCharadesSet,
+  startRoundTimer,
   setSubmissionBonus,
   skipToNextRound,
+  toggleSpellingBelPuzzleDisplay,
 } from "../shared/game-engine.js";
 import {
   getRounds,
@@ -43,7 +45,6 @@ import {
   groupingModes,
   observeGrouping,
   participationModes,
-  setActiveGroup,
   setGroupingPresentation,
 } from "../shared/grouping.js";
 import { observePlayers } from "../shared/players.js";
@@ -58,7 +59,7 @@ import {
   ensureSessionRelease,
   resetGame,
 } from "../shared/session-state.js";
-import { spellingBeeWords } from "./rounds/spelling-bee/content.js";
+import { validateSpellingBelWord } from "../shared/rounds/spelling-bee/round.js";
 import { wouldIMimeSets } from "./rounds/charades/content.js";
 import {
   definitionContent,
@@ -100,16 +101,9 @@ const roundSelect = document.querySelector("#round-select");
 const groupingPanel = document.querySelector("#grouping-panel");
 const hostGroups = document.querySelector("#host-groups");
 const spellingHost = document.querySelector("#spelling-host");
-const spellingPlayer = document.querySelector("#spelling-player");
-const spellingWord = document.querySelector("#spelling-word");
-const spellingPronunciation = document.querySelector("#spelling-pronunciation");
-const spellingDefinition = document.querySelector("#spelling-definition");
-const spellingExample = document.querySelector("#spelling-example");
-const spellingOrigin = document.querySelector("#spelling-origin");
-const spellingNotes = document.querySelector("#spelling-notes");
-const spellingMarking = document.querySelector("#spelling-marking");
-const spellingCorrect = document.querySelector("#spelling-correct");
-const spellingIncorrect = document.querySelector("#spelling-incorrect");
+const spellingPuzzleLabel = document.querySelector("#spelling-puzzle-label");
+const spellingStartTimer = document.querySelector("#spelling-start-timer");
+const spellingShowPuzzle = document.querySelector("#spelling-show-puzzle");
 const charadesHost = document.querySelector("#charades-host");
 const charadesLive = document.querySelector("#charades-live");
 const charadesControl = document.querySelector("#charades-control");
@@ -134,6 +128,9 @@ const audioButtons = {
   extend: document.querySelector("#audio-extend"),
   stop: document.querySelector("#audio-stop"),
 };
+const videoControls = document.querySelector("#video-controls");
+const videoStatus = document.querySelector("#video-status");
+const videoPlayButton = document.querySelector("#video-play");
 
 let gameSnapshot;
 let latestPlayers = [];
@@ -212,6 +209,14 @@ for (const [action, button] of Object.entries(audioButtons)) {
   );
 }
 
+videoPlayButton.addEventListener("click", () =>
+  runAction(videoPlayButton, () =>
+    controlRoundVideo(
+      gameSnapshot?.definition?.video?.fullAfterAnswer ? "full" : "answer",
+    ),
+  ),
+);
+
 nextButton.addEventListener("click", async () => {
   const phase = gameSnapshot?.state.phase;
   const pairingRound =
@@ -230,6 +235,7 @@ nextButton.addEventListener("click", async () => {
   const stagedGenuineAnswer = requiresGenuineAnswerReveal(
     gameSnapshot?.definition,
   );
+  const videoAnswer = Boolean(gameSnapshot?.definition?.video?.initialStop);
   const revealAction = !progressiveReveal
     ? finishRound
     : revealedCount < revealTotal
@@ -237,10 +243,19 @@ nextButton.addEventListener("click", async () => {
       : !gameSnapshot?.round?.revealGridFinalized
         ? finalizeProgressiveReveal
         : stagedGenuineAnswer && !gameSnapshot?.round?.genuineAnswerRevealed
-          ? revealGenuineAnswer
+          ? videoAnswer ? null : revealGenuineAnswer
         : !gameSnapshot?.round?.revealPoints && revealTotal > 0
           ? revealRoundPoints
           : finishRound;
+  const spellingRevealAction = !progressiveReveal
+    ? advanceSpellingBel
+    : revealedCount < revealTotal
+      ? null
+      : !gameSnapshot?.round?.revealGridFinalized
+        ? finalizeProgressiveReveal
+        : !gameSnapshot?.round?.revealPoints && revealTotal > 0
+          ? revealRoundPoints
+          : advanceSpellingBel;
   const action = {
     [phases.lobby]: () => beginRound(roundSelect.value),
     [phases.opening]: openRoundQuestion,
@@ -256,7 +271,7 @@ nextButton.addEventListener("click", async () => {
           )
       : scoreAndReveal,
     [phases.voting]: closeDefinitionVoting,
-    [phases.reveal]: spellingRound ? advanceSpelling : revealAction,
+    [phases.reveal]: spellingRound ? spellingRevealAction : revealAction,
     [phases.leaderboard]: hideLeaderboard,
     [phases.intermission]: () => beginRound(roundSelect.value),
   }[phase];
@@ -288,16 +303,11 @@ revealPointsButton.addEventListener("click", () =>
   runAction(revealPointsButton, revealRoundPoints),
 );
 
-spellingPlayer.addEventListener("change", () =>
-  runAction(spellingPlayer, () => setActiveGroup(spellingPlayer.value)),
+spellingStartTimer.addEventListener("click", () =>
+  runAction(spellingStartTimer, () => startRoundTimer(30)),
 );
-
-spellingCorrect.addEventListener("click", () =>
-  markCurrentSpelling(true, spellingCorrect),
-);
-
-spellingIncorrect.addEventListener("click", () =>
-  markCurrentSpelling(false, spellingIncorrect),
+spellingShowPuzzle.addEventListener("click", () =>
+  runAction(spellingShowPuzzle, toggleSpellingBelPuzzleDisplay),
 );
 
 charadesStartSetButton.addEventListener("click", () =>
@@ -439,8 +449,9 @@ function renderGame(snapshot) {
   cueHeading.textContent =
     state.phase === phases.lobby ? "Welcome" : definition?.typeLabel ?? partyGame.title;
 
-  gamePanel.hidden = !definition || isSpelling || isCharades;
-  spellingHost.hidden = !isSpelling;
+  gamePanel.hidden = !definition || isCharades;
+  spellingHost.hidden =
+    !isSpelling || ![phases.question, phases.marking, phases.reveal].includes(state.phase);
   charadesHost.hidden = !isCharades || state.phase !== phases.question;
   document.body.classList.toggle(
     "charades-live-mode",
@@ -449,6 +460,7 @@ function renderGame(snapshot) {
       round?.charadesPhase === charadesSetPhases.active,
   );
   renderAudioControls(definition, round, state.phase);
+  renderVideoControls(definition, round, state.phase, submissions.length);
   bulkActions.hidden =
     state.phase !== phases.marking ||
     definition?.type !== roundTypes.fastestFreeText;
@@ -456,7 +468,6 @@ function renderGame(snapshot) {
     definition &&
     ![
       roundTypes.pairingPrototype,
-      roundTypes.spellingBee,
       roundTypes.charades,
     ].includes(
       definition.type,
@@ -466,14 +477,15 @@ function renderGame(snapshot) {
   emptySubmissions.hidden = !answerRound || submissions.length > 0;
 
   if (definition) {
-    if (renderedHostRoundId !== definition.id) {
+    const hostRenderKey = `${definition.id}:${definition.puzzle?.id ?? ""}`;
+    if (renderedHostRoundId !== hostRenderKey) {
       const hostContent = getHostContent(definition.id);
       questionText.textContent = definition.question ?? definition.title;
       correctAnswerRow.hidden = !(hostContent?.answer ?? definition.answer);
       correctAnswer.textContent = hostContent?.answer ?? definition.answer ?? "";
       notes.replaceChildren(...hostNoteBlocks(hostContent, definition.notes));
       roundType.textContent = definition.typeLabel;
-      renderedHostRoundId = definition.id;
+      renderedHostRoundId = hostRenderKey;
     }
     renderSubmissions(submissions, state.phase);
   } else {
@@ -509,11 +521,13 @@ function renderGame(snapshot) {
 
   const nextLabels = {
     [phases.lobby]: "START GAME",
-    [phases.opening]: "OPEN QUESTION",
+    [phases.opening]: isSpelling
+      ? (round?.openingIndex ?? 0) < (definition?.openingMedia?.length ?? 1) - 1
+        ? "NEXT"
+        : "START HAIRBRUSH"
+      : "OPEN QUESTION",
     [phases.question]:
-      isSpelling
-        ? "MARK THE SPELLING"
-        : isCharades || isPairing
+      isCharades || isPairing
           ? "FINISH ROUND"
         : definition?.flow?.question?.hostLabel ?? "CLOSE ANSWERS",
     [phases.marking]:
@@ -521,9 +535,7 @@ function renderGame(snapshot) {
         ? "OPEN VOTING"
         : "REVEAL RESULTS",
     [phases.voting]: "CLOSE VOTING & REVEAL",
-    [phases.reveal]: isSpelling
-      ? "NEXT PLAYER"
-      : !usesProgressiveFreeTextReveal(definition)
+    [phases.reveal]: !usesProgressiveFreeTextReveal(definition)
         ? "NEXT QUESTION"
         : (round?.revealedSubmissionIds?.length ?? 0) < submissions.length
           ? "CHOOSE AN ANSWER TO REVEAL"
@@ -531,10 +543,16 @@ function renderGame(snapshot) {
             ? "SHOW ALL ANSWERS"
             : requiresGenuineAnswerReveal(definition) &&
                 !round?.genuineAnswerRevealed
-              ? "REVEAL REAL ANSWER"
+              ? definition?.video?.initialStop
+                ? "PLAY ANSWER CLIP"
+                : "REVEAL REAL ANSWER"
             : !round?.revealPoints && submissions.length > 0
               ? "REVEAL POINTS"
-              : "NEXT QUESTION",
+              : isSpelling
+                ? (round?.puzzleIndex ?? 0) + 1 < (definition?.puzzles?.length ?? 0)
+                  ? "NEXT PUZZLE"
+                  : "FINISH ROUND"
+                : "NEXT QUESTION",
     [phases.leaderboard]: "RETURN TO ROUND",
     [phases.intermission]: "START SELECTED ROUND",
   };
@@ -542,7 +560,6 @@ function renderGame(snapshot) {
   nextButton.textContent = nextLabels[state.phase] ?? "NEXT";
   nextButton.hidden = isCharades && state.phase === phases.question;
   nextButton.disabled =
-    (isSpelling && state.phase === phases.question) ||
     (stagedReveal &&
       (round?.revealedSubmissionIds?.length ?? 0) < submissions.length);
   leaderboardToggle.textContent =
@@ -561,7 +578,8 @@ function renderGame(snapshot) {
     (round?.revealedSubmissionIds?.length ?? 0) < submissions.length ||
     Boolean(round?.revealGridFinalized);
   const needsGenuineAnswer = requiresGenuineAnswerReveal(definition);
-  revealRealAnswerButton.hidden = !needsGenuineAnswer;
+  revealRealAnswerButton.hidden =
+    !needsGenuineAnswer || Boolean(definition?.video?.initialStop);
   revealRealAnswerButton.disabled =
     !stagedReveal ||
     !round?.revealGridFinalized ||
@@ -571,6 +589,30 @@ function renderGame(snapshot) {
     !round?.revealGridFinalized ||
     (needsGenuineAnswer && !round?.genuineAnswerRevealed) ||
     Boolean(round?.revealPoints);
+}
+
+function renderVideoControls(definition, round, phase, submissionCount) {
+  const hasVideo = Boolean(definition?.video);
+  const initialAnswerClip = Boolean(definition?.video?.initialStop);
+  const allRevealed =
+    (round?.revealedSubmissionIds?.length ?? 0) === submissionCount;
+  const canPlayAnswer =
+    initialAnswerClip && phase === phases.reveal && allRevealed;
+  const canPlayFull =
+    definition?.video?.fullAfterAnswer &&
+    phase === phases.reveal &&
+    round?.genuineAnswerRevealed;
+  videoControls.hidden = !hasVideo || (!canPlayAnswer && !canPlayFull);
+  videoPlayButton.textContent = canPlayAnswer ? "PLAY ANSWER CLIP" : "PLAY CLIP";
+  videoPlayButton.disabled = round?.videoStatus?.state === "playing";
+  const messages = {
+    loading: "Loading on Display…",
+    playing: "Playing on Display",
+    blocked: round?.videoStatus?.message ?? "Display needs media permission",
+    finished: "Clip finished",
+    error: round?.videoStatus?.message ?? "Video unavailable",
+  };
+  videoStatus.textContent = messages[round?.videoStatus?.state] ?? "Ready";
 }
 
 function updateDisconnectedWarning(
@@ -679,34 +721,18 @@ function renderCharadesHost(state, round) {
 }
 
 function renderSpellingHost(state, round) {
-  const groups = latestGrouping.groups ?? [];
-  spellingPlayer.replaceChildren(
-    ...groups.map((group) => {
-      const option = document.createElement("option");
-      option.value = group.id;
-      option.textContent = group.members?.[0]?.name ?? group.name;
-      option.selected = group.id === latestGrouping.activeGroupId;
-      return option;
-    }),
-  );
-  spellingPlayer.disabled = state.phase !== phases.question;
-  const item = spellingBeeWords[
-    (round?.itemIndex ?? 0) % spellingBeeWords.length
-  ];
-  spellingWord.textContent = item?.word ?? "No word configured";
-  spellingPronunciation.textContent = item?.pronunciation ?? "";
-  spellingDefinition.textContent = item?.definition ?? "";
-  spellingExample.textContent = item?.example ?? "";
-  spellingOrigin.textContent = item?.origin ?? "";
-  spellingNotes.textContent = item?.notes ?? "";
-  spellingMarking.hidden = state.phase !== phases.question;
-}
-
-async function markCurrentSpelling(correct, button) {
-  const item = spellingBeeWords[
-    (gameSnapshot?.round?.itemIndex ?? 0) % spellingBeeWords.length
-  ];
-  await runAction(button, () => markSpelling({ word: item.word, correct }));
+  const puzzle = gameSnapshot?.definition?.puzzle;
+  spellingPuzzleLabel.textContent = puzzle
+    ? `PUZZLE ${(round?.puzzleIndex ?? 0) + 1} · ${puzzle.title}`
+    : "SPELLING BEL";
+  spellingStartTimer.hidden = state.phase !== phases.question;
+  spellingStartTimer.disabled = round?.timer?.status === "running";
+  spellingStartTimer.textContent =
+    round?.timer?.status === "running" ? "TIMER RUNNING" : "START 30-SECOND TIMER";
+  spellingShowPuzzle.hidden = ![phases.marking, phases.reveal].includes(state.phase);
+  spellingShowPuzzle.textContent = round?.forcePuzzleDisplay
+    ? "RETURN TO ANSWER REVEAL"
+    : "SHOW PUZZLE ON DISPLAY";
 }
 
 function renderGrouping() {
@@ -835,9 +861,24 @@ function renderSubmissions(submissions, phase) {
 
       item.className = `submission-row ${submission.status}`;
       const answerLabel = hostSubmissionLabel(submission, index, phase);
+      const spellingWarning =
+        definition?.type === roundTypes.spellingBee
+          ? validateSpellingBelWord(submission.answer, definition.puzzle)
+          : null;
       answer.innerHTML = `<strong>${escapeHtml(
         answerLabel,
-      )}</strong><span>${escapeHtml(submission.answer)}</span>`;
+      )}</strong><span>${escapeHtml(submission.answer)}</span>${
+        spellingWarning?.warned
+          ? `<span class="submission-warning">CHECK: ${escapeHtml([
+              spellingWarning.missingCentreLetter
+                ? `missing ${definition.puzzle.centreLetter}`
+                : "",
+              spellingWarning.unavailableLetters.length
+                ? `unavailable ${spellingWarning.unavailableLetters.join(", ")}`
+                : "",
+            ].filter(Boolean).join(" · "))}</span>`
+          : ""
+      }`;
       controls.className = "mark-actions";
 
       if (
@@ -851,6 +892,8 @@ function renderSubmissions(submissions, phase) {
           revealed &&
           awardsPointsAfterGenuineAnswer(definition) &&
           gameSnapshot?.round?.genuineAnswerRevealed &&
+          (definition?.type !== roundTypes.spellingBee ||
+            gameSnapshot?.round?.revealGridFinalized) &&
           !gameSnapshot?.round?.revealPoints
         ) {
           appendManualPointButtons(controls, submission);
@@ -976,7 +1019,7 @@ function phaseTitle(phase, definition) {
     return "Round in progress";
   }
   if (phase === phases.question && definition?.type === roundTypes.spellingBee) {
-    return "Spell the word";
+    return "Accepting words";
   }
   return {
     [phases.lobby]: "Lobby",

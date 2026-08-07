@@ -65,7 +65,11 @@ h1 {
 
 .player-question h1,
 .host-game h2 {
+  font-weight: 520;
+  letter-spacing: -0.012em;
+  line-height: 1.14;
   white-space: pre-line;
+  text-wrap: balance;
 }
 
 .answer-instruction {
@@ -886,6 +890,14 @@ dialog::backdrop {
 
 .marking-status.incorrect {
   color: #a3261e;
+}
+
+.submission-warning {
+  margin-top: 0.35rem;
+  color: #a3261e;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
 }
 
 @keyframes bbq-pulse {

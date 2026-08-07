@@ -20,6 +20,7 @@ const manualFreeText = ({
   genuineAnswer,
   maxPoints = 5,
   notes,
+  video,
 }) => ({
   id,
   section,
@@ -32,6 +33,7 @@ const manualFreeText = ({
   prompt,
   genuineAnswer,
   notes,
+  video,
   participation: { mode: "individual" },
   submission: {
     kind: "text",
@@ -140,6 +142,7 @@ export const googlebelRounds = [
     answer: "I just wanted to go home.",
     notes:
       "Setup: Seth Cohen is describing his disastrous first sexual experience with Summer.",
+    video: { id: "googlebel-oc-video", initialStop: 44.8, answerLead: 13 },
   },
   {
     id: "googlebel-game-of-thrones",
@@ -147,13 +150,15 @@ export const googlebelRounds = [
     answer: "I have balls, and you don’t.",
     notes:
       "Setup: Varys asks Tyrion why he takes offence at dwarf jokes but enjoys making jokes about eunuchs.",
+    video: { id: "googlebel-got-video", initialStop: 13.5, answerLead: 13 },
   },
   {
     id: "googlebel-fleabag",
-    question: "Fleabag at a silent Quaker meeting: “It’s very, very ______.”",
-    answer: "erotic.",
+    question: "What does Fleabag say when she turns to camera?",
+    answer: "I think my period's coming.",
     notes:
-      "Setup: Fleabag describes the meeting directly to the audience as intense and very quiet, then adds the missing word.",
+      "Setup: The Tube/train scene begins with music and visual comedy before Fleabag turns directly to camera.",
+    video: { id: "googlebel-fleabag-video", initialStop: 48.6, answerLead: 13 },
   },
 ].map((round) =>
   comedyRound({
@@ -161,6 +166,7 @@ export const googlebelRounds = [
     section: "GOOGLEBEL",
     mediaId: "googlebel-title",
     notes: `${round.notes} Reveal every player ending first, reveal the genuine quote last, then award 0–5 points for closeness or comedy.`,
+    video: round.video,
   }),
 );
 
@@ -211,6 +217,7 @@ export const thankGodYoureLyricsRounds = [
     maxPoints: 3,
     mediaId: "thank-god-youre-lyrics-title",
     notes: `Song: ${round.song}. Artist: ${round.artist}. Award 0–3 points total: up to 2 for the lyric and 1 for artist/song. Judge everything manually.`,
+    video: { id: `${round.id}-video`, fullAfterAnswer: true },
   }),
 );
 

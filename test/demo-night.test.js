@@ -1,6 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { spellingBeeWords } from "../host/rounds/spelling-bee/content.js";
 import { getHostContent } from "../host/rounds/demo-night/content.js";
 import {
   bestFreeTextRounds,
@@ -26,33 +25,6 @@ test("the supplied demo-night sections contain the complete question pack", () =
       closestWinsRounds.length,
     ],
     [8, 8, 6, 6, 16],
-  );
-});
-
-test("the spelling bee contains every supplied word exactly once", () => {
-  assert.equal(spellingBeeWords.length, 18);
-  assert.deepEqual(
-    spellingBeeWords.map(({ word }) => word),
-    [
-      "Embarrassment",
-      "Diarrhoea",
-      "Questionnaire",
-      "Accommodation",
-      "Conscientious",
-      "Millennium",
-      "Supersede",
-      "Pharaoh",
-      "Onomatopoeia",
-      "Rhythm",
-      "Liaison",
-      "Manoeuvre",
-      "Camouflage",
-      "Harass",
-      "Maintenance",
-      "Separate",
-      "Privilege",
-      "Occasionally",
-    ].map((word) => word.toUpperCase()),
   );
 });
 
@@ -92,13 +64,6 @@ test("every BBQ-MCQ question is a phone-ready multiple choice", () => {
   for (const round of mcqRounds) {
     assert.equal(round.choices.length, 4, round.question);
     assert.ok(round.choices.includes(round.answer), round.question);
-  }
-});
-
-test("spelling bee Host cards include an origin and a playful sentence", () => {
-  for (const item of spellingBeeWords) {
-    assert.ok(item.origin.length > 10, item.word);
-    assert.ok(item.example.length > 20, item.word);
   }
 });
 

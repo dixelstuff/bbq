@@ -104,26 +104,20 @@
         </div>
       </section>
 
+      <section id="video-controls" class="audio-controls stack" hidden>
+        <div>
+          <p class="eyebrow">Display video</p>
+          <p id="video-status" class="status" role="status"></p>
+        </div>
+        <button id="video-play" type="button">PLAY CLIP</button>
+      </section>
+
       <section id="spelling-host" class="spelling-host stack" hidden>
-        <p class="eyebrow">Active contestant</p>
-        <select id="spelling-player" aria-label="Active spelling contestant"></select>
-        <div class="spelling-word-card">
-          <p class="eyebrow">Word</p>
-          <h2 id="spelling-word"></h2>
-          <p><strong>Pronunciation:</strong> <span id="spelling-pronunciation"></span></p>
-          <p><strong>Definition:</strong> <span id="spelling-definition"></span></p>
-          <p><strong>Use me in a sentence:</strong> <span id="spelling-example"></span></p>
-          <p><strong>Language / origin:</strong> <span id="spelling-origin"></span></p>
-          <p><strong>Host note:</strong> <span id="spelling-notes"></span></p>
-        </div>
-        <div id="spelling-marking" class="spelling-marking">
-          <button id="spelling-correct" class="mark-correct" type="button">
-            ✓ CORRECT
-          </button>
-          <button id="spelling-incorrect" class="mark-incorrect" type="button">
-            ✕ INCORRECT
-          </button>
-        </div>
+        <p id="spelling-puzzle-label" class="eyebrow"></p>
+        <button id="spelling-start-timer" type="button">START 30-SECOND TIMER</button>
+        <button id="spelling-show-puzzle" class="secondary" type="button" hidden>
+          SHOW PUZZLE ON DISPLAY
+        </button>
       </section>
 
       <section id="charades-host" class="charades-host stack" hidden>
